@@ -75,19 +75,19 @@ flowchart LR
 
 - [x] **P0.1** Repo skeleton — *done*
 - [ ] **P0.2** Dataset acquisition (Real Life Violence Situations Dataset, 2000 videos) — *pending (Kaggle Notebook üzerinden)*
-- [ ] **P1.1** 10 FPS sampler — *in-progress*
-- [ ] **P1.2** Frame preprocessor (conditional CLAHE → Gaussian 3×3 → 640×640 → BGR→RGB) — *in-progress*
-- [ ] **P1.3** YOLOv8n-Pose extractor + keypoint confidence filter (0.5) — *in-progress*
-- [ ] **P1.4** Multi-person selector (top 2, X-sorted) + normalized bbox center distance — *in-progress*
-- [ ] **P1.5** 69-dim feature vector + hip centering + shoulder–hip scaling — *in-progress*
-- [ ] **P1.6** Per-video `.npy` writer — *in-progress*
-- [ ] **P2.1** Stratified 70 / 15 / 15 split — *pending*
-- [ ] **P2.2** 30-frame sliding window builder — *pending*
-- [ ] **P2.3** Motion filter on Violence windows (θ = 0.05) — *pending*
-- [ ] **P3** GRU classifier (sigmoid output) — *pending*
-- [ ] **P4** Training loop (BCELoss, Adam, batch 32, max 100 epochs, early stopping on val_loss, best by lowest val_loss) — *pending*
-- [ ] **P5** Evaluation (confusion matrix, precision, recall, F1, AUC-ROC) — *pending*
-- [ ] **P6** Online inference (FIFO 30 frames, threshold 0.7) — *pending*
+- [x] **P1.1** 10 FPS sampler — *done (Kaggle notebook)*
+- [x] **P1.2** Frame preprocessor (conditional CLAHE → Gaussian 3×3 → 640×640 → BGR→RGB) — *done (Kaggle notebook)*
+- [x] **P1.3** YOLOv8n-Pose extractor + keypoint confidence filter (0.5) — *done (Kaggle notebook)*
+- [x] **P1.4** Multi-person selector (top 2, X-sorted) + normalized bbox center distance — *done (Kaggle notebook)*
+- [x] **P1.5** 69-dim feature vector + hip centering + shoulder–hip scaling — *done (Kaggle notebook)*
+- [x] **P1.6** Per-video `.npy` writer — *done (Kaggle notebook)*
+- [x] **P2.1** Stratified 70 / 15 / 15 split — *done (Kaggle notebook)*
+- [x] **P2.2** 30-frame sliding window builder — *done (Kaggle notebook)*
+- [x] **P2.3** Motion filter on Violence windows (θ = 0.05) — *done (Kaggle notebook)*
+- [x] **P3** GRU classifier (sigmoid output) — *done (src/model.py, 115,777 params)*
+- [x] **P4** Training loop (BCELoss, Adam, batch 32, max 100 epochs, early stopping on val_loss, best by lowest val_loss) — *done (src/train.py)*
+- [x] **P5** Evaluation (confusion matrix, precision, recall, F1, AUC-ROC) — *done (src/evaluate.py)*
+- [x] **P6** Online inference (FIFO 30 frames, threshold 0.7) — *done (src/inference.py)*
 - [ ] **P7.1** Threshold ablation — *pending*
 - [ ] **P7.2** Interaction-feature ablation — *pending*
 - [ ] **P7.3** Normalization ablation — *pending*
