@@ -10,7 +10,6 @@ Locked decisions:
 
 import os
 import sys
-import math
 import time
 from collections import deque
 
@@ -25,130 +24,15 @@ from configs.config import (
     DECISION_THRESHOLD,
     FIFO_BUFFER_LENGTH,
     POSE_MODEL_NAME,
-    NUM_KEYPOINTS,
-    KEYPOINT_CONFIDENCE_THRESHOLD,
-    CLAHE_CLIP_LIMIT,
-    CLAHE_TILE_GRID_SIZE,
-    CLAHE_BRIGHTNESS_THRESHOLD,
-    GAUSSIAN_KERNEL_SIZE,
-    GAUSSIAN_SIGMA,
     RESIZE_DIM,
-    FEATURE_DIM,
-    SKELETON_DIM,
-    TORSO_HEIGHT_EPSILON,
 )
 from src.model import ViolenceGRU
-
-
-# ── Frame Preprocessing (identical to Kaggle offline) ────────
-
-def check_low_brightness(frame, threshold=CLAHE_BRIGHTNESS_THRESHOLD):
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    return gray.mean() < threshold
-
-
-def apply_clahe(frame):
-    lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
-    l_ch, a_ch, b_ch = cv2.split(lab)
-    clahe = cv2.createCLAHE(
-        clipLimit=CLAHE_CLIP_LIMIT, tileGridSize=CLAHE_TILE_GRID_SIZE
-    )
-    l_ch = clahe.apply(l_ch)
-    lab = cv2.merge([l_ch, a_ch, b_ch])
-    return cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
-
-
-def preprocess_frame(frame):
-    if check_low_brightness(frame):
-        frame = apply_clahe(frame)
-    frame = cv2.GaussianBlur(frame, GAUSSIAN_KERNEL_SIZE, GAUSSIAN_SIGMA)
-    frame = cv2.resize(frame, RESIZE_DIM)
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    return frame
-
-
-# ── Pose Extraction ──────────────────────────────────────────
-
-def extract_pose(frame_rgb, model):
-    results = model(frame_rgb, verbose=False)
-    persons = []
-    if results[0].keypoints is not None and len(results[0].keypoints) > 0:
-        kps_data = results[0].keypoints.data.cpu().numpy()
-        boxes_data = results[0].boxes.data.cpu().numpy()
-        for i in range(len(kps_data)):
-            kps = kps_data[i]
-            box = boxes_data[i]
-            bbox_area = (box[2] - box[0]) * (box[3] - box[1])
-            cx = (box[0] + box[2]) / 2
-            cy = (box[1] + box[3]) / 2
-            persons.append({
-                'keypoints': kps,
-                'bbox': box[:4],
-                'bbox_area': bbox_area,
-                'bbox_center': (cx, cy),
-                'detection_conf': box[4],
-            })
-    return persons
-
-
-# ── Multi-Person + Normalization + Feature Vector ────────────
-
-def select_top2_persons(persons):
-    if len(persons) == 0:
-        return None, None
-    if len(persons) == 1:
-        return persons[0], None
-    sorted_by_area = sorted(persons, key=lambda p: p['bbox_area'], reverse=True)
-    top2 = sorted_by_area[:2]
-    top2_sorted = sorted(top2, key=lambda p: p['bbox_center'][0])
-    return top2_sorted[0], top2_sorted[1]
-
-
-def filter_keypoints(keypoints):
-    filtered = np.zeros((NUM_KEYPOINTS, 2), dtype=np.float32)
-    for i in range(NUM_KEYPOINTS):
-        if keypoints[i, 2] >= KEYPOINT_CONFIDENCE_THRESHOLD:
-            filtered[i, 0] = keypoints[i, 0]
-            filtered[i, 1] = keypoints[i, 1]
-    return filtered
-
-
-def normalize_skeleton(kps_2d):
-    hip_mx = (kps_2d[11, 0] + kps_2d[12, 0]) / 2
-    hip_my = (kps_2d[11, 1] + kps_2d[12, 1]) / 2
-    for i in range(NUM_KEYPOINTS):
-        if kps_2d[i, 0] == 0.0 and kps_2d[i, 1] == 0.0:
-            kps_2d[i, 0] = hip_mx
-            kps_2d[i, 1] = hip_my
-    centered = kps_2d.copy()
-    centered[:, 0] -= hip_mx
-    centered[:, 1] -= hip_my
-    sh_my = (kps_2d[5, 1] + kps_2d[6, 1]) / 2
-    torso_h = abs(hip_my - sh_my)
-    if torso_h > TORSO_HEIGHT_EPSILON:
-        centered /= torso_h
-    else:
-        return np.zeros((NUM_KEYPOINTS, 2), dtype=np.float32)
-    return centered
-
-
-def build_feature_vector(p1, p2, frame_w):
-    if p1 is not None:
-        sk1 = normalize_skeleton(filter_keypoints(p1['keypoints'])).flatten()
-    else:
-        sk1 = np.zeros(SKELETON_DIM, dtype=np.float32)
-    if p2 is not None:
-        sk2 = normalize_skeleton(filter_keypoints(p2['keypoints'])).flatten()
-    else:
-        sk2 = np.zeros(SKELETON_DIM, dtype=np.float32)
-    if p1 is not None and p2 is not None:
-        d = math.dist(p1['bbox_center'], p2['bbox_center'])
-        nd = d / frame_w if frame_w > 0 else 1.0
-    elif p1 is not None:
-        nd = 1.0
-    else:
-        nd = 0.0
-    return np.concatenate([sk1, sk2, np.array([nd], dtype=np.float32)])
+from src.preprocessing import (
+    preprocess_frame,
+    extract_pose,
+    select_top2_persons,
+    build_feature_vector,
+)
 
 
 # ── Visualization ────────────────────────────────────────────
