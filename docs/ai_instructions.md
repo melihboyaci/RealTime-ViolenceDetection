@@ -129,3 +129,131 @@ Ask before acting if:
 - Whether agents are allowed to introduce new ablations beyond the four listed in `evaluation.md`: **TBD.**
 - Whether agents may change the on-disk artifact layout independently: **TBD.**
 - Whether agents may add a temporal smoothing layer to online inference: **TBD.**
+
+---
+
+## 14. Mandatory Preprocessing Chain (LOCKED)
+
+> **Read this section before writing any image preprocessing code.**
+> Skill references: `skills/image-processing-skills/skills/02-preprocessing-decisions/SKILL.md`,
+> `skills/image-processing-skills/skills/06-yolo-pipeline/SKILL.md`,
+> `skills/image-processing-skills/skills/01-image-fundamentals/SKILL.md`
+
+### 14.1 The Four-Step Pipeline
+
+The per-frame preprocessing order is **fixed and non-negotiable**:
+
+```
+Step 1 → CLAHE            (conditional — apply only when low-contrast/dark frames are detected)
+Step 2 → GaussianBlur 3×3 (kernel must be odd; removes Gaussian sensor noise before YOLO inference)
+Step 3 → Resize 640×640   (YOLO imgsz=640 default; cv2.resize uses (width, height) convention)
+Step 4 → BGR → RGB        (OpenCV loads BGR; YOLO/Ultralytics expects RGB)
+```
+
+Do **not** reorder, skip, or add steps without a recorded ablation and a `decision_log.md` update.
+
+### 14.2 Step-by-Step Rationale
+
+#### Step 1 — CLAHE (Conditional)
+
+- Apply **only** when a frame is assessed as low-contrast or under-lit (e.g., histogram mean below threshold).
+- CLAHE enhances local contrast without saturating bright regions (unlike global histogram equalisation).
+- Runs **before** blurring so that the contrast boost is not immediately smoothed away.
+- Skipping on well-lit frames avoids introducing artificial textures that could confuse pose keypoints.
+
+#### Step 2 — GaussianBlur 3×3
+
+- Source noise in surveillance-grade cameras is predominantly **Gaussian** (sensor heat, low-light grain).
+  Per `02-preprocessing-decisions/SKILL.md`: *"Gaussian noise → Gaussian Blur"* is the correct match.
+- Kernel `(3, 3)` is the minimum odd size; it suppresses high-frequency noise without destroying joint/limb edges needed by the pose estimator.
+- **Bilateral Filter is ruled out** for this pipeline: it preserves edges better but is significantly slower,
+  making it unsuitable for real-time video (see §11 "Never Do" — do not swap to bilateral without benchmarking).
+- `sigma = 0` lets OpenCV derive sigma from the kernel size (standard practice).
+
+```python
+# CORRECT
+frame = cv2.GaussianBlur(frame, (3, 3), 0)
+
+# WRONG — even kernel crashes OpenCV
+frame = cv2.GaussianBlur(frame, (4, 4), 0)
+```
+
+#### Step 3 — Resize to 640×640
+
+- `imgsz=640` is the YOLOv8n-Pose default and is locked in `decision_log.md`.
+- `cv2.resize` takes `(width, height)` — **not** `(height, width)`. See `01-image-fundamentals/SKILL.md` §2 "Triple Coordinate Convention" for the full OpenCV axis-order table.
+
+```python
+# CORRECT — (width, height)
+frame = cv2.resize(frame, (640, 640))
+
+# WRONG — swapped axes
+frame = cv2.resize(frame, (height, width))
+```
+
+#### Step 4 — BGR → RGB
+
+- OpenCV `cv2.imread` and `cv2.VideoCapture` deliver frames in **BGR** channel order.
+- Ultralytics YOLO (and PyTorch in general) expects **RGB**.
+- Feeding BGR to the model causes a silent colour-channel swap; blue and red channels are exchanged,
+  degrading pose-keypoint confidence without raising an exception.
+  Per `01-image-fundamentals/SKILL.md`: *"colors will be swapped (blue shirt appears red)"*.
+
+```python
+# CORRECT
+frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+```
+
+### 14.3 Reference Implementation Skeleton
+
+```python
+import cv2
+
+def preprocess_frame(frame: "np.ndarray", apply_clahe: bool = False) -> "np.ndarray":
+    """
+    Locked preprocessing chain for RealTime-ViolenceDetection.
+    Order: CLAHE (conditional) → GaussianBlur 3×3 → Resize 640×640 → BGR→RGB
+    Do NOT change order or parameters without updating decision_log.md.
+    """
+    # Step 1 — CLAHE (conditional)
+    if apply_clahe:
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l = clahe.apply(l)
+        frame = cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_LAB2BGR)
+
+    # Step 2 — Gaussian Blur 3×3
+    frame = cv2.GaussianBlur(frame, (3, 3), 0)
+
+    # Step 3 — Resize to 640×640  (width, height convention)
+    frame = cv2.resize(frame, (640, 640))
+
+    # Step 4 — BGR → RGB
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    return frame
+```
+
+### 14.4 What Agents Must NOT Do
+
+- ❌ Insert a **Median Filter** anywhere in this chain (it is for salt-and-pepper noise; not present here).
+- ❌ Insert a **Bilateral Filter** without a real-time FPS benchmark (it is too slow for live inference).
+- ❌ Resize **before** blurring (correct order: blur first, then resize).
+- ❌ Skip the BGR→RGB conversion and pass raw OpenCV frames to YOLO.
+- ❌ Use an even kernel size (e.g., `(4, 4)`) — OpenCV will crash.
+- ❌ Apply CLAHE unconditionally on every frame — only apply when low-contrast is detected.
+- ❌ Change `imgsz` from 640 without updating `decision_log.md` and re-running training.
+
+### 14.5 Skill Submodule Reference
+
+The skills that back this section are pinned as a git submodule:
+
+```
+skills/image-processing-skills/   ← git submodule (aeren23/image-processing-skills)
+  skills/01-image-fundamentals/SKILL.md   → BGR/RGB, coordinate systems, bit depth
+  skills/02-preprocessing-decisions/SKILL.md → filter selection, kernel rules, noise types
+  skills/06-yolo-pipeline/SKILL.md         → YOLOv8n-Pose setup, confidence handling, imgsz
+```
+
+Fetch the submodule after cloning: `git submodule update --init --recursive`
