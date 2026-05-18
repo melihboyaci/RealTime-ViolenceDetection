@@ -73,14 +73,14 @@ flowchart LR
 
 ## 6. Checklist (status: done / in-progress / pending)
 
-- [ ] **P0.1** Repo skeleton — *pending*
-- [ ] **P0.2** Dataset acquisition (Real Life Violence Situations Dataset, 2000 videos) — *pending*
-- [ ] **P1.1** 10 FPS sampler — *pending*
-- [ ] **P1.2** Frame preprocessor (conditional CLAHE → Gaussian 3×3 → 640×640 → BGR→RGB) — *pending*
-- [ ] **P1.3** YOLOv8n-Pose extractor + keypoint confidence filter (0.5) — *pending*
-- [ ] **P1.4** Multi-person selector (top 2, X-sorted) + normalized bbox center distance — *pending*
-- [ ] **P1.5** 69-dim feature vector + hip centering + shoulder–hip scaling — *pending*
-- [ ] **P1.6** Per-video `.npy` writer — *pending*
+- [x] **P0.1** Repo skeleton — *done*
+- [ ] **P0.2** Dataset acquisition (Real Life Violence Situations Dataset, 2000 videos) — *pending (Kaggle Notebook üzerinden)*
+- [ ] **P1.1** 10 FPS sampler — *in-progress*
+- [ ] **P1.2** Frame preprocessor (conditional CLAHE → Gaussian 3×3 → 640×640 → BGR→RGB) — *in-progress*
+- [ ] **P1.3** YOLOv8n-Pose extractor + keypoint confidence filter (0.5) — *in-progress*
+- [ ] **P1.4** Multi-person selector (top 2, X-sorted) + normalized bbox center distance — *in-progress*
+- [ ] **P1.5** 69-dim feature vector + hip centering + shoulder–hip scaling — *in-progress*
+- [ ] **P1.6** Per-video `.npy` writer — *in-progress*
 - [ ] **P2.1** Stratified 70 / 15 / 15 split — *pending*
 - [ ] **P2.2** 30-frame sliding window builder — *pending*
 - [ ] **P2.3** Motion filter on Violence windows (θ = 0.05) — *pending*
