@@ -15,13 +15,13 @@ Evaluation rigor, metrics, and ablation suite.
 
 ## 2. Metrics — Definitions
 
-| Metric | Definition | Why it matters here |
-|---|---|---|
-| **Confusion matrix** | TP, FP, TN, FN counts on the test split | Base for all derived metrics |
-| **Precision** | `TP / (TP + FP)` for **Violence** | High precision = few false alarms |
-| **Recall** | `TP / (TP + FN)` for **Violence** | High recall = few missed Violence events |
-| **F1** | `2 · P · R / (P + R)` for **Violence** | Single-number balance metric |
-| **AUC-ROC** | Area under the ROC curve over thresholds in `[0, 1]` | Threshold-free quality of the sigmoid score |
+| Metric               | Definition                                           | Why it matters here                         |
+| -------------------- | ---------------------------------------------------- | ------------------------------------------- |
+| **Confusion matrix** | TP, FP, TN, FN counts on the test split              | Base for all derived metrics                |
+| **Precision**        | `TP / (TP + FP)` for **Violence**                    | High precision = few false alarms           |
+| **Recall**           | `TP / (TP + FN)` for **Violence**                    | High recall = few missed Violence events    |
+| **F1**               | `2 · P · R / (P + R)` for **Violence**               | Single-number balance metric                |
+| **AUC-ROC**          | Area under the ROC curve over thresholds in `[0, 1]` | Threshold-free quality of the sigmoid score |
 
 All per-class metrics are reported with **Violence as the positive class** (`y = 1`).
 
@@ -41,8 +41,8 @@ Actual  V    [ TP    | FN  ]
 ## 4. Precision / Recall / F1 / AUC-ROC Usage
 
 - Report **all four** alongside the confusion matrix.
-- Use **AUC-ROC** to compare *models* (threshold-free).
-- Use **precision / recall / F1** at a chosen threshold to compare *deployments*.
+- Use **AUC-ROC** to compare _models_ (threshold-free).
+- Use **precision / recall / F1** at a chosen threshold to compare _deployments_.
 - Always state the **threshold** under which precision / recall / F1 were computed.
 
 ## 5. Threshold Analysis
@@ -64,37 +64,37 @@ All ablations follow the same protocol:
 
 ### 6.1 Threshold Study
 
-| Factor | Baseline | Sweep |
-|---|---|---|
-| Decision threshold | **0.7** | `{0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90}` |
-| Re-train required? | No | No |
+| Factor             | Baseline | Sweep                                        |
+| ------------------ | -------- | -------------------------------------------- |
+| Decision threshold | **0.7**  | `{0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90}` |
+| Re-train required? | No       | No                                           |
 
 Goal: characterize precision/recall trade-off across operating points and pick a deployment threshold per use case.
 
 ### 6.2 Interaction Feature Study
 
-| Factor | Baseline | Variant |
-|---|---|---|
+| Factor                          | Baseline                          | Variant                                                                     |
+| ------------------------------- | --------------------------------- | --------------------------------------------------------------------------- |
 | Normalized bbox center distance | **included** in the 69-dim vector | **removed** (feature vector becomes shorter; record the new dimensionality) |
-| Re-train required? | — | **Yes** |
+| Re-train required?              | —                                 | **Yes**                                                                     |
 
 Goal: quantify the contribution of the two-person interaction signal.
 
 ### 6.3 Normalization Study
 
-| Factor | Baseline | Variants |
-|---|---|---|
+| Factor                 | Baseline                                 | Variants                                                                    |
+| ---------------------- | ---------------------------------------- | --------------------------------------------------------------------------- |
 | Skeletal normalization | **hip centering + shoulder–hip scaling** | (a) no normalization; (b) hip centering only; (c) shoulder–hip scaling only |
-| Re-train required? | — | **Yes** for each variant |
+| Re-train required?     | —                                        | **Yes** for each variant                                                    |
 
 Goal: confirm that both normalization steps contribute, and quantify each.
 
 ### 6.4 Motion Filter Threshold Study
 
-| Factor | Baseline | Sweep |
-|---|---|---|
+| Factor                          | Baseline | Sweep                                         |
+| ------------------------------- | -------- | --------------------------------------------- |
 | Motion filter θ (Violence only) | **0.05** | `{0.00 (disabled), 0.025, 0.05, 0.075, 0.10}` |
-| Re-train required? | — | **Yes** for each θ |
+| Re-train required?              | —        | **Yes** for each θ                            |
 
 Goal: characterize how aggressively low-motion Violence windows should be removed; trade off label-noise reduction vs. data loss.
 
@@ -117,13 +117,14 @@ For each experiment, report:
 
 Recommended single-table summary:
 
-| Run | Threshold | Precision | Recall | F1 | AUC-ROC | Notes |
-|---|---|---|---|---|---|---|
-| baseline | 0.70 | TBD | TBD | TBD | TBD | locked |
-| threshold-sweep@0.5 | 0.50 | TBD | TBD | TBD | — | same weights |
-| no-interaction | 0.70 | TBD | TBD | TBD | TBD | feature ablation |
-| no-normalization | 0.70 | TBD | TBD | TBD | TBD | normalization ablation |
-| motion-θ=0.0 | 0.70 | TBD | TBD | TBD | TBD | motion filter ablation |
+| Run                             | Threshold | Precision | Recall | F1     | AUC-ROC | Notes                  |
+| ------------------------------- | --------- | --------- | ------ | ------ | ------- | ---------------------- |
+| baseline                        | 0.70      | 0.8671    | 0.5415 | 0.6667 | 0.9210  | locked initial         |
+| threshold-sweep@0.4 (val-tuned) | 0.40      | 0.7435    | 0.9314 | 0.8269 | 0.9210  | **deployed**           |
+| threshold-sweep@0.5             | 0.50      | 0.7825    | 0.8051 | 0.7936 | 0.9210  | same weights           |
+| no-interaction                  | 0.70      | TBD       | TBD    | TBD    | TBD     | feature ablation       |
+| no-normalization                | 0.70      | TBD       | TBD    | TBD    | TBD     | normalization ablation |
+| motion-θ=0.0                    | 0.70      | TBD       | TBD    | TBD    | TBD     | motion filter ablation |
 
 ## 9. Reporting Hygiene
 

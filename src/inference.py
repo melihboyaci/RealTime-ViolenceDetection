@@ -22,9 +22,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from configs.config import (
     BEST_MODEL_PATH,
     DECISION_THRESHOLD,
+    SUSPICIOUS_THRESHOLD,
     FIFO_BUFFER_LENGTH,
     POSE_MODEL_NAME,
     RESIZE_DIM,
+    SMOOTHING_WINDOW,
+    SMOOTHING_MIN_COUNT,
+    ENTRY_SUPPRESSION_FRAMES,
 )
 from src.model import ViolenceGRU
 from src.preprocessing import (
@@ -42,10 +46,12 @@ def draw_overlay(frame, decision, probability, threshold, buffer_len, fps):
 
     if decision == "Violence":
         color = (0, 0, 255)   # Red
+    elif decision == "Suspicious":
+        color = (0, 200, 255) # Yellow/Orange
     elif decision == "NonViolence":
         color = (0, 200, 0)   # Green
     else:
-        color = (200, 200, 0) # Yellow (warming up)
+        color = (200, 200, 0) # Cyan (warming up)
 
     # Decision label
     cv2.putText(frame, decision, (10, 40),
@@ -79,13 +85,14 @@ def draw_overlay(frame, decision, probability, threshold, buffer_len, fps):
 
 # ── Main Inference Loop ──────────────────────────────────────
 
-def run_inference(source=0, threshold=DECISION_THRESHOLD):
+def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None):
     """
     Run real-time inference on a video source.
 
     Args:
         source: 0 for webcam, or path to video file
-        threshold: decision threshold (default 0.7)
+        threshold: decision threshold (default 0.6)
+        save_dir: directory to save collected samples (None = no collection)
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
@@ -105,6 +112,21 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD):
     # FIFO buffer
     buffer = deque(maxlen=FIFO_BUFFER_LENGTH)
 
+    # Temporal smoothing history
+    decision_history = deque(maxlen=SMOOTHING_WINDOW)
+
+    # Entry suppression state
+    prev_person_count = 0
+    suppression_counter = 0
+
+    # Sample collection setup
+    if save_dir:
+        os.makedirs(os.path.join(save_dir, "violence"), exist_ok=True)
+        os.makedirs(os.path.join(save_dir, "nonviolence"), exist_ok=True)
+        print(f"Sample collection enabled: {save_dir}")
+        print("  Press 'v' to save current buffer as Violence")
+        print("  Press 'n' to save current buffer as NonViolence")
+
     # Video source
     cap = cv2.VideoCapture(source)
     if not cap.isOpened():
@@ -112,6 +134,8 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD):
         return
 
     print(f"\nInference started (source={source}, threshold={threshold})")
+    print(f"Smoothing: {SMOOTHING_MIN_COUNT}/{SMOOTHING_WINDOW} windows required")
+    print(f"Entry suppression: {ENTRY_SUPPRESSION_FRAMES} frames")
     print("Press 'q' to quit.\n")
 
     prev_time = time.time()
@@ -132,10 +156,24 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD):
         p1, p2 = select_top2_persons(persons)
         fv = build_feature_vector(p1, p2, RESIZE_DIM[0])
 
+        # ── Entry Suppression ─────────────────────────────────
+        current_person_count = len(persons)
+        if prev_person_count == 0 and current_person_count > 0:
+            suppression_counter = ENTRY_SUPPRESSION_FRAMES
+            buffer.clear()
+            decision_history.clear()
+        prev_person_count = current_person_count
+
+        if suppression_counter > 0:
+            suppression_counter -= 1
+
         buffer.append(fv)
 
         # ── Decision ──────────────────────────────────────────
-        if len(buffer) < FIFO_BUFFER_LENGTH:
+        if suppression_counter > 0:
+            decision = "Warming Up"
+            probability = None
+        elif len(buffer) < FIFO_BUFFER_LENGTH:
             decision = "Warming Up"
             probability = None
         else:
@@ -146,7 +184,30 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD):
                 prob = model(tensor).item()
 
             probability = prob
-            decision = "Violence" if prob >= threshold else "NonViolence"
+
+            # Raw decision from model
+            if prob >= threshold:
+                raw_decision = "Violence"
+            elif prob >= SUSPICIOUS_THRESHOLD:
+                raw_decision = "Suspicious"
+            else:
+                raw_decision = "NonViolence"
+
+            # Temporal smoothing
+            decision_history.append(raw_decision)
+            violence_count = sum(
+                1 for d in decision_history if d in ("Violence", "Suspicious")
+            )
+
+            if violence_count >= SMOOTHING_MIN_COUNT:
+                # Confirm: check if any were full Violence
+                full_violence = sum(1 for d in decision_history if d == "Violence")
+                if full_violence >= SMOOTHING_MIN_COUNT:
+                    decision = "Violence"
+                else:
+                    decision = "Suspicious"
+            else:
+                decision = "NonViolence"
 
         # ── Visualize ─────────────────────────────────────────
         display = draw_overlay(
@@ -156,12 +217,30 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD):
 
         cv2.imshow("Violence Detection", display)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        # ── Key handling ──────────────────────────────────────
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
             break
+        elif save_dir and len(buffer) == FIFO_BUFFER_LENGTH:
+            if key == ord('v'):
+                _save_sample(buffer, save_dir, "violence")
+            elif key == ord('n'):
+                _save_sample(buffer, save_dir, "nonviolence")
 
     cap.release()
     cv2.destroyAllWindows()
     print("Inference stopped.")
+
+
+def _save_sample(buffer, save_dir, label):
+    """Save current buffer as a labeled .npy sample for fine-tuning."""
+    seq = np.array(list(buffer), dtype=np.float32)
+    label_dir = os.path.join(save_dir, label)
+    existing = len([f for f in os.listdir(label_dir) if f.endswith('.npy')])
+    filename = f"sample_{existing:04d}.npy"
+    filepath = os.path.join(label_dir, filename)
+    np.save(filepath, seq)
+    print(f"  [SAVED] {label}/{filename} shape={seq.shape}")
 
 
 if __name__ == "__main__":
@@ -171,7 +250,9 @@ if __name__ == "__main__":
                         help="Video source: 0 for webcam, or path to video file")
     parser.add_argument("--threshold", type=float, default=DECISION_THRESHOLD,
                         help=f"Decision threshold (default: {DECISION_THRESHOLD})")
+    parser.add_argument("--collect", type=str, default=None,
+                        help="Directory to save collected samples for fine-tuning")
     args = parser.parse_args()
 
     source = int(args.source) if args.source.isdigit() else args.source
-    run_inference(source=source, threshold=args.threshold)
+    run_inference(source=source, threshold=args.threshold, save_dir=args.collect)

@@ -70,7 +70,15 @@ SCHEDULER_MIN_LR = 1e-6
 
 # ── D10 / D18: Inference ───────────────────────────────────────
 FIFO_BUFFER_LENGTH = SEQUENCE_LENGTH  # 30
-DECISION_THRESHOLD = 0.7
+SUSPICIOUS_THRESHOLD = 0.4   # p >= 0.4 → Suspicious (yellow)
+DECISION_THRESHOLD = 0.6     # p >= 0.6 → Violence (red)
+
+# ── Temporal Smoothing ─────────────────────────────────────────
+SMOOTHING_WINDOW = 3         # Son N kararı tut
+SMOOTHING_MIN_COUNT = 2      # N'den en az kaçı Violence/Suspicious olmalı
+
+# ── Entry Suppression ──────────────────────────────────────────
+ENTRY_SUPPRESSION_FRAMES = 30  # Yeni kişi belirdiğinde N frame boyunca karar verme
 
 # ── Class Labels ────────────────────────────────────────────────
 VIOLENCE_LABEL = 1
