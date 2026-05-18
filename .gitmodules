@@ -1,0 +1,3 @@
+[submodule "skills/image-processing-skills"]
+	path = skills/image-processing-skills
+	url = https://github.com/aeren23/image-processing-skills
