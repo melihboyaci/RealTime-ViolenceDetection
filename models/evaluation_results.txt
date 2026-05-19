@@ -1,6 +1,0 @@
-Threshold: 0.7
-Precision: 0.8654
-Recall: 0.6498
-F1: 0.7423
-AUC-ROC: 0.9256
-TP: 180, FP: 28, TN: 435, FN: 97
