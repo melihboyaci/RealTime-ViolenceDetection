@@ -1,76 +1,159 @@
-# README.md
+# Real-Time Violence Detection via Skeletal Pose Analysis
 
-## Türkçe Özet
+A real-time violence detection system that operates entirely on **skeletal pose features** — no raw pixels are fed to the classifier. The system extracts 17-keypoint poses with YOLOv8n-Pose, builds 69-dimensional per-frame feature vectors, and classifies 30-frame sequences as **Violence / NonViolence** using a two-layer GRU.
 
-Bu depo, **iskelet (poz) tabanlı, gerçek zamanlı şiddet tespiti** projesinin dokümantasyonunu içerir. Sistem iki aşamadan oluşur: **çevrimdışı ön işleme** (offline preprocessing) ham videodan kareleri 10 FPS'e indirir, koşullu CLAHE + 3×3 Gauss + 640×640 yeniden boyutlandırma + BGR→RGB uygular, **YOLOv8n-Pose** ile 17 COCO eklem noktasını çıkarır, en üst 2 kişiyi X eksenine göre sıralar, **69 boyutlu** kare öznitelik vektörü üretir ve **30 karelik kayan pencerelere** böler; Şiddet pencereleri **θ = 0.05** hareket filtresinden geçer. **Çevrimiçi çıkarım** (online inference) aşamasında aynı kare hattı kullanılır, **30 kare uzunluğunda FIFO** tampon dolduğunda **GRU** modeli sigmoid skoru üretir, **eşik = 0.7** ile **Violence / NonViolence** kararı verilir. Kaynak veri kümesi: **Real Life Violence Situations Dataset** (Kaggle, 2000 video). Bölme: **stratifiye 70 / 15 / 15**. Yığın: OpenCV, YOLOv8n-Pose, PyTorch, GRU.
+```
+[Raw Video]
+    │
+    ▼  Offline Preprocessing (Kaggle GPU)
+    ├─ 10 FPS sampling
+    ├─ Conditional CLAHE → Gaussian 3×3 → Resize 640×640 → BGR→RGB
+    ├─ YOLOv8n-Pose → 17 COCO keypoints per person
+    ├─ Top-2 person selection (by bbox area, X-sorted)
+    ├─ Hip centering + shoulder–hip scaling
+    ├─ 69-dim feature vector / frame
+    ├─ 30-frame sliding windows (stride=15)
+    └─ Motion filter θ=0.05 on Violence windows only
+           │
+           ▼  (N, 30, 69) .npy sequences
+    ┌──────────────────────────────┐
+    │  GRU Classifier (Training)   │
+    │  2-layer GRU 128→64          │
+    │  BCELoss + Adam, max 100 ep  │
+    │  Early stopping on val_loss  │
+    └──────────────────────────────┘
+           │
+           ▼  models/best_model.pt
+[Live Camera / Video]
+    │
+    ▼  Online Inference (real-time)
+    ├─ Same frame preprocessing
+    ├─ FIFO buffer (30 frames)
+    ├─ GRU → sigmoid score
+    ├─ Triple-zone decision (t=0.45):
+    │    score < 0.35  →  NonViolence
+    │    0.35–0.45     →  Suspicious
+    │    score ≥ 0.45  →  Violence
+    ├─ Temporal smoothing (3-window majority)
+    └─ Entry suppression (30f on new person)
+```
 
----
+## 1. Results
 
-## 1. Overview
+### Final Model (Blended RLVS + RWF-2000, threshold = 0.45)
 
-A real-time violence detection system based on **skeletal pose analysis**. Each frame is reduced to a 69-dimensional pose feature vector; sequences of 30 such vectors are classified as **Violence** or **NonViolence** by a GRU. The pipeline is split into **offline preprocessing** (cached `.npy` features) and **online inference** (FIFO buffer of 30 frames + threshold).
+| Metric      | Value      |
+| ----------- | ---------- |
+| Precision   | 0.7749     |
+| Recall      | 0.8700     |
+| **F1**      | **0.8197** |
+| **AUC-ROC** | **0.9272** |
+| Accuracy    | 85.7%      |
 
-## 2. Project Goal
+Test set: 740 sequences (RLVS-only, isolated). TP=241, FP=70, FN=36, TN=393.
 
-Produce a binary **Violence / NonViolence** classifier that runs in real time on a live video source, trained on cached pose features extracted offline from the **Real Life Violence Situations Dataset** (Kaggle, **2000 videos**), using a **GRU** sequence model with **BCELoss + Adam**, with the deployment threshold initially set to **0.7**.
+### Ablation Summary
 
-## 3. Main Modules
+| Experiment                                | F1        | AUC-ROC   | ΔF1      |
+| ----------------------------------------- | --------- | --------- | -------- |
+| Baseline (RLVS-only, t=0.70)              | 0.667     | 0.921     | —        |
+| Threshold sweep → t=0.40                  | 0.827     | 0.921     | +0.160   |
+| **Blended model (RLVS+RWF-2000, t=0.45)** | **0.820** | **0.927** | deployed |
+| P7.2 No interaction feature (68-dim)      | 0.825     | 0.931     | +0.005   |
+| P7.3 No normalization                     | 0.827     | 0.938     | +0.007   |
+| P7.3 Hip centering only                   | 0.823     | 0.937     | +0.003   |
 
-| Module | Phase | Doc |
-|---|---|---|
-| Frame preprocessor (CLAHE? → 3×3 → 640×640 → BGR→RGB) | offline + online | `architecture.md`, `data_pipeline.md` |
-| Pose extractor (YOLOv8n-Pose, 17 COCO keypoints) | offline + online | `data_pipeline.md` |
-| Multi-person selector (top 2, X-sort, normalized bbox center distance) | offline + online | `data_pipeline.md`, `architecture.md` |
-| Feature builder (69-dim, hip centering + shoulder–hip scaling) | offline + online | `data_pipeline.md` |
-| Sequence builder (30-frame sliding window) | offline | `data_pipeline.md` |
-| Motion filter (θ = 0.05, Violence only) | offline | `data_pipeline.md`, `decision_log.md` |
-| GRU classifier (sigmoid, BCELoss, Adam) | training + online | `model.md`, `training.md` |
-| Trainer (max 100 epochs, batch 32, early stop on val_loss) | training | `training.md` |
-| Evaluator (CM, precision, recall, F1, AUC-ROC) | evaluation | `evaluation.md` |
-| FIFO + decision (FIFO 30, threshold 0.7) | online | `inference.md` |
+> P7.3 variants show normalization has marginal impact on this dataset (all within ±1% F1). The full normalization (D14) is kept as it improves positional invariance across camera angles.
 
-## 4. How the Docs Are Organized
+## 2. Dataset
 
-| File | Purpose |
-|---|---|
-| `project.md` | Vision, problem, goal, exec summary |
-| `state.md` | Current state, locked decisions, open questions |
-| `project-plan.md` | Phased roadmap and checklist |
-| `specs.md` | Numbered functional / non-functional / data / model / inference requirements |
-| `architecture.md` | Component boundaries + Mermaid flow diagrams |
-| `data_pipeline.md` | Full data lifecycle, normalization, sequencing, motion filter |
-| `model.md` | GRU specification and ablation hooks |
-| `training.md` | Training playbook and reproducibility notes |
-| `inference.md` | Real-time + offline inference, FIFO behavior, pseudo-code |
-| `evaluation.md` | Metrics, threshold analysis, four-ablation suite |
-| `limitations.md` | Accepted trade-offs, known issues vs. bugs |
-| `ai_instructions.md` | **Required reading** for any AI agent |
-| `decision_log.md` | Authoritative locked decisions table |
-| `README.md` | This file |
+| Split | Sequences | Violence | NonViolence | Source               |
+| ----- | --------- | -------- | ----------- | -------------------- |
+| Train | 6 423     | 3 227    | 3 196       | RLVS + RWF-2000      |
+| Val   | 1 435     | 683      | 752         | RLVS + RWF-2000      |
+| Test  | 740       | 277      | 463         | RLVS only (isolated) |
 
-## 5. Recommended Reading Order for New Contributors
+Raw video preprocessing is done via `notebooks/kaggle_preprocessing.ipynb` on Kaggle (GPU T4 x2, ~1 hour for 4000 videos).
 
-1. `README.md` (you are here)
-2. `ai_instructions.md` — non-negotiable rules for agents and humans
-3. `project.md` — what the system does and why
-4. `state.md` — current locked decisions and open questions
-5. `decision_log.md` — the source of truth for "what is fixed"
-6. `architecture.md` — overall flow
-7. The doc closest to your task: `data_pipeline.md`, `model.md`, `training.md`, `inference.md`, `evaluation.md`, `limitations.md`, or `specs.md`
+## 3. How to Run
 
-## 6. Suggested Next Steps for Implementation
+### Requirements
 
-> Detailed phasing lives in `project-plan.md`. The short version:
+```bash
+# GPU (CUDA 12.x recommended):
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+pip install -r requirements.txt
+```
 
-1. **P0** — Bootstrap the repo, install OpenCV / Ultralytics (YOLOv8n-Pose) / PyTorch, place the dataset.
-2. **P1** — Implement the offline pipeline up to per-video `(N, 69)` `.npy` artifacts.
-3. **P2** — Build the **30-frame sliding window** dataset; apply **motion filter θ = 0.05** to Violence windows; persist the **stratified 70 / 15 / 15** split.
-4. **P3** — Implement the GRU classifier (`(batch, 30, 69)` → sigmoid).
-5. **P4** — Train with **BCELoss + Adam, batch 32, max 100 epochs, early stopping on val_loss, best by lowest val_loss**.
-6. **P5** — Evaluate on the **isolated test split**: confusion matrix, precision, recall, F1, AUC-ROC.
-7. **P6** — Build the online inference loop with **FIFO 30 frames** and **threshold 0.7**.
-8. **P7** — Run the four ablations (threshold, interaction-feature, normalization, motion-filter θ); tune the deployment threshold on the val split per use case.
+### Real-Time Inference (webcam)
 
-## 7. Doc-Bundle Status
+```bash
+python -m src.inference
+```
 
-This documentation bundle reflects only what is in the source PDF. Anything missing is marked **TBD** or **"Not specified in the source PDF."** Future contributors must keep that discipline (see `ai_instructions.md` §11).
+### Inference on a Video File
+
+```bash
+python -m src.inference --source path/to/video.mp4
+```
+
+### Evaluate on Test Split
+
+```bash
+python -m src.evaluate
+```
+
+### Train from Scratch
+
+```bash
+# 1. Run notebooks/kaggle_preprocessing.ipynb on Kaggle to generate .npy sequences
+# 2. Place sequences in data/sequences/{train,val,test}/
+python -m src.train
+```
+
+## 4. Repository Structure
+
+```
+configs/        — config.py (all hyperparameters, thresholds, paths)
+docs/           — project documentation (architecture, pipeline, evaluation, limitations…)
+models/         — best_model.pt checkpoint + training log
+notebooks/      — kaggle_preprocessing.ipynb (offline preprocessing)
+                — kaggle_ablation_norm_*.ipynb (P7.3 ablation variants)
+scripts/        — ablation studies, threshold sweep, utility scripts
+src/            — preprocessing.py, model.py, dataset.py, train.py, evaluate.py, inference.py
+```
+
+## 5. Key Design Decisions
+
+| Decision               | Choice                               | Rationale                                       |
+| ---------------------- | ------------------------------------ | ----------------------------------------------- |
+| Feature representation | 69-dim skeletal pose                 | Privacy-preserving, lighting-invariant          |
+| Normalization          | Hip centering + shoulder–hip scaling | Camera-distance invariant pose                  |
+| Sequence length        | 30 frames @ 10 FPS (~3 sec)          | Covers typical violence onset duration          |
+| Motion filter          | θ=0.05 on Violence only              | Removes mislabeled calm segments                |
+| Model                  | 2-layer GRU                          | Temporal sequence; lightweight for real-time    |
+| Dataset blend          | RLVS + RWF-2000                      | Reduces domain overfitting (+21% training data) |
+| Decision zones         | 3-zone (NV / Suspicious / Violence)  | Reduces false alarm fatigue                     |
+
+Full decision log: [`docs/decision_log.md`](docs/decision_log.md)
+
+## 6. Known Limitations
+
+- **Two-person cap:** only the top 2 detected persons are encoded; crowd scenes lose information.
+- **Pose-only:** weapons, blood, and context invisible to the model.
+- **X-axis sorting instability:** persons can flip identity during crossing/overlap (see `docs/limitations.md`).
+- **Single dataset domain:** trained on YouTube clips; performance may drop on top-down/fisheye surveillance cameras.
+- **Video-level labels:** label noise mitigated by motion filter but not eliminated.
+
+Full limitations: [`docs/limitations.md`](docs/limitations.md)
+
+## 7. Documentation Index
+
+| File                    | Purpose                                        |
+| ----------------------- | ---------------------------------------------- |
+| `docs/architecture.md`  | Component boundaries + Mermaid flow diagrams   |
+| `docs/data_pipeline.md` | Full data lifecycle, normalization, sequencing |
+| `docs/evaluation.md`    | Metrics, threshold analysis, ablation suite    |
+| `docs/limitations.md`   | Accepted trade-offs and known issues           |
+| `docs/decision_log.md`  | Authoritative locked decisions (D1–D25)        |
+| `docs/state.md`         | Current project state snapshot                 |

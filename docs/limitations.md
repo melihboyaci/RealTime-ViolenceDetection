@@ -23,8 +23,8 @@ Known trade-offs of the current design. These are accepted limitations, not bugs
 
 - **What it is**: frames in which YOLOv8n-Pose detects no person. The 69-dim feature vector has no skeleton to encode.
 - **Impact**: such frames need an explicit handling rule; otherwise the FIFO buffer holds undefined data and decisions become unreliable.
-- **Status**: handling strategy is **TBD** but mandatory; same rule must be used offline and online. Until the rule is locked, this is a **bug-class risk**, not a benign limitation.
-- **Future improvement**: explicit zero-fill with a "no skeleton" flag dimension, or buffer-pause semantics during person-less stretches.
+- **Status**: **resolved** — zero-fill applied: frames with no detected person produce a 69-dim zero vector; the FIFO buffer continues accumulating. Same rule applied offline (preprocessing.py) and online (inference.py).
+- **Future improvement**: add a "no skeleton" flag dimension, or pause the FIFO buffer during person-less stretches.
 
 ## 4. Single-Source Dataset / Domain Shift
 
@@ -59,7 +59,7 @@ Known trade-offs of the current design. These are accepted limitations, not bugs
 
 - **What it is**: keypoints with confidence `< 0.5` are flagged unreliable. The exact replacement strategy (zero-fill, last-known, interpolation) is **TBD**.
 - **Impact**: until locked, two implementations could disagree on the same input.
-- **Status**: **bug-class risk** until the strategy is locked in `decision_log.md`. Same rule must be applied offline and online.
+- **Status**: **resolved** — zero-fill is used: keypoints with confidence < 0.5 are set to (0, 0) and then replaced with the hip midpoint during normalization. Same rule applied offline and online.
 
 ## 9. Initial Threshold Is Not Empirical
 
@@ -69,17 +69,17 @@ Known trade-offs of the current design. These are accepted limitations, not bugs
 
 ## 10. Known Limitations vs. Bugs
 
-| Item | Type |
-|---|---|
-| X-axis sorting instability | known limitation |
-| Video-level label noise | known limitation (mitigated by motion filter) |
-| Zero-person frames | **bug-class risk** until rule is locked |
-| Single-source domain shift | known limitation |
-| Pose-only representation | known limitation by design |
-| Two-person cap | known limitation by design |
-| Fixed 30-frame window | known limitation by design |
-| Sub-threshold keypoint replacement | **bug-class risk** until rule is locked |
-| Non-empirical initial threshold | known limitation by design |
+| Item                               | Type                                          |
+| ---------------------------------- | --------------------------------------------- |
+| X-axis sorting instability         | known limitation                              |
+| Video-level label noise            | known limitation (mitigated by motion filter) |
+| Zero-person frames                 | resolved — zero-fill                          |
+| Single-source domain shift         | known limitation                              |
+| Pose-only representation           | known limitation by design                    |
+| Two-person cap                     | known limitation by design                    |
+| Fixed 30-frame window              | known limitation by design                    |
+| Sub-threshold keypoint replacement | resolved — zero-fill → hip midpoint           |
+| Non-empirical initial threshold    | known limitation by design                    |
 
 ## 11. Future Improvements (Non-Exhaustive)
 
@@ -88,7 +88,7 @@ Known trade-offs of the current design. These are accepted limitations, not bugs
 - Lock and document zero-person and sub-threshold-keypoint handling.
 - Multi-source training data and / or domain adaptation.
 - Optional pixel-side branch (e.g. weapon detection) fused with the pose-side decision.
-- Temporal smoothing across consecutive Violence decisions in online inference.
+- Temporal smoothing across consecutive Violence decisions in online inference. _(implemented: 3-window majority vote)_
 
 ## 12. Assumptions / Open Questions
 

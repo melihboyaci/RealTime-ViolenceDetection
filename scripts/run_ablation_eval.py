@@ -123,7 +123,7 @@ def run_ablation(name, data_dir):
             best_val_loss = val_loss
             patience_counter = 0
             torch.save(model.state_dict(), model_path)
-            improved = " ★"
+            improved = " [best]"
         else:
             patience_counter += 1
 
@@ -179,8 +179,8 @@ def run_ablation(name, data_dir):
         f.write(f"AUC-ROC:   {auc:.4f}\n")
         f.write(f"Accuracy:  {acc:.4f}\n")
         f.write(f"TP={tp}  FP={fp}  FN={fn}  TN={tn}\n")
-        f.write(f"ΔF1:  {f1-BASELINE['f1']:+.4f}\n")
-        f.write(f"ΔAUC: {auc-BASELINE['auc']:+.4f}\n")
+        f.write(f"DeltaF1:  {f1-BASELINE['f1']:+.4f}\n")
+        f.write(f"DeltaAUC: {auc-BASELINE['auc']:+.4f}\n")
     print(f"\nModel saved: {model_path}")
     print(f"Result saved: {result_path}")
 

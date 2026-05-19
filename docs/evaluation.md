@@ -123,8 +123,8 @@ Recommended single-table summary:
 | threshold-sweep@0.4 (RLVS, val-tuned) | RLVS 3283 seq  | 0.40      | 0.7435    | 0.9314 | 0.8269 | 0.9210  | prev deployed                  |
 | blended-model@0.45 (RLVS+RWF-2000)    | Blend 6423 seq | 0.45      | 0.7749    | 0.8700 | 0.8197 | 0.9272  | **deployed** (D24, D25)        |
 | P7.2 no-interaction@0.45 (blended)    | Blend 6423 seq | 0.45      | 0.7478    | 0.9206 | 0.8252 | 0.9311  | ΔF1=+0.005 vs blended baseline |
-| P7.3 no-normalization                 | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
-| P7.3 hip-center-only                  | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
+| P7.3 no-normalization                 | Blend 6428 seq | 0.45      | 0.7606    | 0.9061 | 0.8270 | 0.9378  | ΔF1=+0.007 vs blended baseline |
+| P7.3 hip-center-only                  | Blend 6428 seq | 0.45      | 0.7926    | 0.8556 | 0.8229 | 0.9374  | ΔF1=+0.003 vs blended baseline |
 | P7.3 shoulder-hip-scale-only          | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
 | P7.4 motion-θ=0.00                    | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
 | P7.4 motion-θ=0.025                   | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
