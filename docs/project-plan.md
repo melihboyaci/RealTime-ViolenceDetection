@@ -14,6 +14,7 @@ Execution roadmap turning the source PDF into an implementable plan. Phases are 
 | P5  | Evaluation                | metrics + ablation reports                              |
 | P6  | Online inference          | live FIFO-buffer pipeline + on-screen overlay           |
 | P7  | Hardening                 | limitation handling, threshold tuning, docs sync        |
+| P8  | Dataset Blending          | RLVS + RWF-2000 preprocessing + blended model           |
 
 ## 2. Milestones
 
@@ -24,7 +25,8 @@ Execution roadmap turning the source PDF into an implementable plan. Phases are 
 - **M5** — Training run completes within max 100 epochs with early stopping; best checkpoint saved. _(Depends on M3 + M4)_
 - **M6** — Evaluation produces confusion matrix, precision, recall, F1, AUC-ROC on the **test split**. _(Depends on M5)_
 - **M7** — Online inference loop classifies a live source with **FIFO 30** + initial **threshold 0.7**. _(Depends on M5)_
-- **M8** — Ablations completed: threshold study, interaction-feature study, normalization study, motion-filter θ study. _(Depends on M6)_
+- **M8** — Ablations completed: threshold study (done), interaction-feature study (done), normalization study (Kaggle-pending), motion-filter θ study (Kaggle-pending). _(Depends on M6)_
+- **M9** — Blended dataset (RLVS+RWF-2000) processed, model retrained, evaluated. _(Done: train 6423 seq, test F1=0.820, AUC=0.927)_
 
 ## 3. Suggested Order of Implementation
 
@@ -85,13 +87,18 @@ flowchart LR
 - [x] **P2.2** 30-frame sliding window builder — _done (Kaggle notebook)_
 - [x] **P2.3** Motion filter on Violence windows (θ = 0.05) — _done (Kaggle notebook)_
 - [x] **P3** GRU classifier (sigmoid output) — _done (src/model.py, 115,777 params)_
-- [x] **P4** Training loop (BCELoss, Adam, batch 32, max 100 epochs, early stopping on val_loss, best by lowest val_loss) — _done (src/train.py)_
+- [x] **P4** Training loop (BCELoss, Adam, batch 32, max 100 epochs, early stopping on val*loss, best by lowest val_loss) — \_done (src/train.py)*
 - [x] **P5** Evaluation (confusion matrix, precision, recall, F1, AUC-ROC) — _done (src/evaluate.py)_
 - [x] **P6** Online inference (FIFO 30 frames, threshold 0.7) — _done (src/inference.py)_
-- [x] **P7.1** Threshold ablation — _done (best F1=0.827 at t=0.4, deployed)_
-- [ ] **P7.2** Interaction-feature ablation — _pending_
-- [ ] **P7.3** Normalization ablation — _pending_
-- [ ] **P7.4** Motion-filter θ ablation — _pending_
+- [x] **P7.1** Threshold ablation (RLVS-only) — _done (best F1=0.827 at t=0.4)_
+- [x] **P7.1b** Threshold ablation (blended model) — _done (best F1=0.820 at t=0.45, deployed)_
+- [x] **P7.2** Interaction-feature ablation — _done (no-interaction: F1=0.825, AUC=0.931; ΔF1=+0.005 — feature not critical)_
+- [ ] **P7.3** Normalization ablation — _pending (Kaggle preprocessing required — raw videos not local)_
+- [ ] **P7.4** Motion-filter θ ablation — _pending (Kaggle preprocessing required)_
+- [x] **P8.1** RWF-2000 Kaggle preprocessing notebook update — _done (notebooks/kaggle_preprocessing.ipynb v2)_
+- [x] **P8.2** Blended sequences downloaded + local training — _done (train 6423 seq, GPU RTX 4060)_
+- [x] **P8.3** Blended model evaluation — _done (test F1=0.820, AUC=0.927 at t=0.45)_
+- [x] **P8.4** Full documentation sync — _done (2026-05-19)_
 
 ## 7. "Do Not Start Before" Notes
 

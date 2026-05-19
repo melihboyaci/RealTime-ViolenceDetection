@@ -50,7 +50,7 @@ Actual  V    [ TP    | FN  ]
 - Sweep threshold over a grid (e.g. `0.30, 0.35, ..., 0.90`) on the **val split**.
 - Plot precision–recall vs threshold.
 - Choose the threshold per use case (see §7).
-- The **initial** deployment threshold is **0.7** (locked baseline). It is a starting point, not an empirical optimum.
+- The **initial** deployment threshold is **0.7** (locked baseline). Val-tuned on RLVS-only model → 0.4; val-tuned on blended model → **0.45** (current deployment, D25).
 
 ## 6. Ablation Experiments
 
@@ -117,14 +117,18 @@ For each experiment, report:
 
 Recommended single-table summary:
 
-| Run                             | Threshold | Precision | Recall | F1     | AUC-ROC | Notes                  |
-| ------------------------------- | --------- | --------- | ------ | ------ | ------- | ---------------------- |
-| baseline                        | 0.70      | 0.8671    | 0.5415 | 0.6667 | 0.9210  | locked initial         |
-| threshold-sweep@0.4 (val-tuned) | 0.40      | 0.7435    | 0.9314 | 0.8269 | 0.9210  | **deployed**           |
-| threshold-sweep@0.5             | 0.50      | 0.7825    | 0.8051 | 0.7936 | 0.9210  | same weights           |
-| no-interaction                  | 0.70      | TBD       | TBD    | TBD    | TBD     | feature ablation       |
-| no-normalization                | 0.70      | TBD       | TBD    | TBD    | TBD     | normalization ablation |
-| motion-θ=0.0                    | 0.70      | TBD       | TBD    | TBD    | TBD     | motion filter ablation |
+| Run                                   | Dataset        | Threshold | Precision | Recall | F1     | AUC-ROC | Notes                          |
+| ------------------------------------- | -------------- | --------- | --------- | ------ | ------ | ------- | ------------------------------ |
+| baseline (RLVS-only)                  | RLVS 3283 seq  | 0.70      | 0.8671    | 0.5415 | 0.6667 | 0.9210  | locked initial                 |
+| threshold-sweep@0.4 (RLVS, val-tuned) | RLVS 3283 seq  | 0.40      | 0.7435    | 0.9314 | 0.8269 | 0.9210  | prev deployed                  |
+| blended-model@0.45 (RLVS+RWF-2000)    | Blend 6423 seq | 0.45      | 0.7749    | 0.8700 | 0.8197 | 0.9272  | **deployed** (D24, D25)        |
+| P7.2 no-interaction@0.45 (blended)    | Blend 6423 seq | 0.45      | 0.7478    | 0.9206 | 0.8252 | 0.9311  | ΔF1=+0.005 vs blended baseline |
+| P7.3 no-normalization                 | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
+| P7.3 hip-center-only                  | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
+| P7.3 shoulder-hip-scale-only          | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
+| P7.4 motion-θ=0.00                    | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
+| P7.4 motion-θ=0.025                   | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
+| P7.4 motion-θ=0.075                   | —              | —         | TBD       | TBD    | TBD    | TBD     | Kaggle preprocessing required  |
 
 ## 9. Reporting Hygiene
 

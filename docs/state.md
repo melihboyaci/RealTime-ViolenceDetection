@@ -4,51 +4,57 @@ This file captures the **current project state** so any AI agent or human contri
 
 ## 1. What Is Already Decided (Locked)
 
-| Area | Decision |
-|---|---|
-| Task | Binary classification: **Violence / NonViolence** |
-| Phases | Strict separation of **offline preprocessing** and **online inference** |
-| Dataset | Real Life Violence Situations Dataset (Kaggle), 2000 videos |
-| Split | Stratified **70 / 15 / 15** train / val / test |
-| Target FPS | **10 FPS** |
-| Frame ops | conditional CLAHE on dark frames → Gaussian blur **3×3** → resize **640×640** → BGR→RGB |
-| Pose model | **YOLOv8n-Pose**, COCO **17 keypoints** |
-| Keypoint confidence threshold | **0.5** (below = unreliable) |
-| Multi-person policy | top **2** people, **sort by X axis**, **normalized bbox center distance** as interaction feature |
-| Feature vector | **69 dims / frame** |
-| Normalization | hip centering + shoulder–hip scaling |
-| Sequence window | **30 frames**, sliding |
-| Motion filter | applied to **Violence** windows only, **θ = 0.05** |
-| Model | **GRU** sequence classifier, **sigmoid** output |
-| Loss / optimizer | **BCELoss**, **Adam** |
-| Training | max **100 epochs**, batch **32**, **early stopping on val_loss**, **best by lowest val_loss** |
-| Inference buffer | **FIFO 30 frames** |
-| Initial decision threshold | **0.7** |
-| Evaluation | confusion matrix, precision, recall, F1, AUC-ROC, plus ablations |
-| Stack | OpenCV, YOLOv8n-Pose, PyTorch, GRU |
+| Area                          | Decision                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Task                          | Binary classification: **Violence / NonViolence**                                                                  |
+| Phases                        | Strict separation of **offline preprocessing** and **online inference**                                            |
+| Dataset                       | **Real Life Violence Situations (RLVS)** 2000 videos + **RWF-2000** 2000 videos (blended); test split is RLVS-only |
+| Split                         | Stratified **70 / 15 / 15** train / val / test                                                                     |
+| Target FPS                    | **10 FPS**                                                                                                         |
+| Frame ops                     | conditional CLAHE on dark frames → Gaussian blur **3×3** → resize **640×640** → BGR→RGB                            |
+| Pose model                    | **YOLOv8n-Pose**, COCO **17 keypoints**                                                                            |
+| Keypoint confidence threshold | **0.5** (below = unreliable)                                                                                       |
+| Multi-person policy           | top **2** people, **sort by X axis**, **normalized bbox center distance** as interaction feature                   |
+| Feature vector                | **69 dims / frame**                                                                                                |
+| Normalization                 | hip centering + shoulder–hip scaling                                                                               |
+| Sequence window               | **30 frames**, sliding                                                                                             |
+| Motion filter                 | applied to **Violence** windows only, **θ = 0.05**                                                                 |
+| Model                         | **GRU** sequence classifier, **sigmoid** output                                                                    |
+| Loss / optimizer              | **BCELoss**, **Adam**                                                                                              |
+| Training                      | max **100 epochs**, batch **32**, **early stopping on val_loss**, **best by lowest val_loss**                      |
+| Inference buffer              | **FIFO 30 frames**                                                                                                 |
+| Initial decision threshold    | **0.7**                                                                                                            |
+| Evaluation                    | confusion matrix, precision, recall, F1, AUC-ROC, plus ablations                                                   |
+| Stack                         | OpenCV, YOLOv8n-Pose, PyTorch, GRU                                                                                 |
 
 ## 2. What Is Not Yet Decided
 
-| Area | Status |
-|---|---|
-| GRU layer count / hidden size / dropout | **Not specified in the source PDF** |
-| Optimizer learning rate / scheduler | **Not specified in the source PDF** |
-| Random seed policy for splits | **TBD** |
-| Hardware target for online inference | **Not specified in the source PDF** |
-| Final tuned decision threshold (post-evaluation) | **TBD** (initial = 0.7) |
-| Logging / experiment tracker (e.g. TensorBoard, W&B) | **TBD** |
-| Deployment surface (CLI / web / RTSP) | **TBD** |
-| Class-balancing strategy beyond motion filter | **TBD** |
+| Area                                                 | Status                                                                    |
+| ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| GRU layer count / hidden size / dropout              | 2-layer GRU (128→64), Dropout=0.3, Dense=32 — implemented in src/model.py |
+| Optimizer learning rate / scheduler                  | LR=1e-3, ReduceLROnPlateau (patience=5, factor=0.5, min=1e-6)             |
+| Random seed policy for splits                        | **42** (SPLIT_RANDOM_STATE in configs/config.py)                          |
+| Hardware target for online inference                 | Tested on RTX 4060 Laptop GPU; runs on CPU (~5-10 FPS with YOLOv8n-Pose)  |
+| Final tuned decision threshold (post-evaluation)     | **0.45** (blended model, val-tuned, test F1=0.820, AUC=0.927)             |
+| Logging / experiment tracker (e.g. TensorBoard, W&B) | CSV log only (`models/training_log.csv`)                                  |
+| Deployment surface (CLI / web / RTSP)                | CLI via `python -m src.inference` (webcam + file support)                 |
+| Class-balancing strategy beyond motion filter        | NonViolence undersampling in train split to match Violence count          |
 
-## 3. Current Pipeline Stage Assumptions
+## 3. Current Pipeline Stage (Actual)
 
-Unless evidence on disk says otherwise, future agents should assume:
+As of the last session (2026-05-19):
 
-- No code has been implemented yet.
-- No `.npy` feature artifacts exist.
-- No trained checkpoint exists.
-- No evaluation report has been generated.
-- The `docs/` folder is the only authoritative artifact.
+- **P0-P6 complete.** All pipeline stages implemented and tested.
+- **Preprocessing:** RLVS + RWF-2000 blended sequences in `data/sequences/{train,val,test}/`.
+  - train: 6423 seq (V=3227, NV=3196) | val: 1435 seq | test: 740 seq (RLVS-only)
+- **Model:** `models/best_model.pt` — ViolenceGRU, 115,777 params, best val_loss=0.5314 (epoch 7).
+- **Evaluation:** test F1=0.820, AUC=0.927 at threshold=0.45.
+- **Inference:** `src/inference.py` — triple-zone decision, temporal smoothing (3-window), entry suppression (30f), sample collection.
+- **P7.1 done:** Threshold ablation → deployed t=0.45.
+- **P7.2 done:** Interaction-feature ablation → F1=0.825, AUC=0.931 without interaction distance (ΔF1=+0.005).
+- **P7.3 pending:** Normalization ablation — requires Kaggle preprocessing (raw videos not local).
+- **P7.4 pending:** Motion-filter θ ablation — requires Kaggle preprocessing.
+- **Dev env:** `.venv` in project root, PyTorch 2.12.0+cu126, RTX 4060 Laptop GPU.
 
 ## 4. Implementation Status Template
 
@@ -64,13 +70,13 @@ Each module/file should be tracked using this template (mirrored in `project-pla
 
 ## 5. Risks and Blockers
 
-| Risk | Phase | Mitigation |
-|---|---|---|
-| X-axis sorting instability under person overlap | offline + online | Documented as accepted limitation; ablation may revisit |
-| Video-level label noise leaking into Violence sequences | offline | **Motion filter θ = 0.05** drops low-motion Violence windows |
-| Zero-person frames (no skeleton) | offline + online | Define explicit handling (TBD); see `inference.md` |
-| Domain shift from a single YouTube-sourced dataset | model generalization | Acknowledged limitation; future multi-source data |
-| Missing hyperparameters in source PDF | training | Treat as TBD; do not invent |
+| Risk                                                    | Phase                | Mitigation                                                   |
+| ------------------------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| X-axis sorting instability under person overlap         | offline + online     | Documented as accepted limitation; ablation may revisit      |
+| Video-level label noise leaking into Violence sequences | offline              | **Motion filter θ = 0.05** drops low-motion Violence windows |
+| Zero-person frames (no skeleton)                        | offline + online     | Define explicit handling (TBD); see `inference.md`           |
+| Domain shift from a single YouTube-sourced dataset      | model generalization | Acknowledged limitation; future multi-source data            |
+| Missing hyperparameters in source PDF                   | training             | Treat as TBD; do not invent                                  |
 
 ## 6. Last Known Stable Decisions
 

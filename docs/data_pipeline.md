@@ -4,18 +4,20 @@ Full data lifecycle, from raw videos to training-ready `(30, 69)` sequence tenso
 
 ## 1. Dataset Description
 
-| Attribute | Value |
-|---|---|
-| Source | **Real Life Violence Situations Dataset** (Kaggle) |
-| Total videos | **2000** |
-| Classes | **Violence**, **NonViolence** |
-| Label granularity | **Video-level** (note: contributes to label noise) |
+| Attribute             | Value                                                                          |
+| --------------------- | ------------------------------------------------------------------------------ |
+| Source                | **Real Life Violence Situations (RLVS)** + **RWF-2000** (blended)              |
+| RLVS videos           | **2000** (train+val+test)                                                      |
+| RWF-2000 videos       | **2000** (train+val only — test split is RLVS-only)                            |
+| Total training videos | **~4000** across train+val                                                     |
+| Classes               | **Violence**, **NonViolence** (RWF-2000: Fight→Violence, NonFight→NonViolence) |
+| Label granularity     | **Video-level** (note: contributes to label noise)                             |
 
 ## 2. Split Strategy
 
 - **Stratified 70 / 15 / 15** train / val / test, preserving class proportions.
 - Splits are computed **once**, persisted on disk, and reused by all training and evaluation runs.
-- Random seed: **TBD** (must be recorded once chosen).
+- Random seed: **42** (`SPLIT_RANDOM_STATE` in `configs/config.py`).
 - The **test split is strictly isolated**: never used for training, validation, threshold tuning, or any model selection.
 
 ## 3. Suggested File / Folder Structure
@@ -77,7 +79,7 @@ flowchart LR
 
 - Per-keypoint confidence threshold: **0.5**.
 - Keypoints with `conf < 0.5` are marked unreliable.
-- Replacement strategy (zero-fill vs. last-known vs. interpolation): **TBD**, but must be applied identically offline and online.
+- Replacement strategy: **zero-fill** (sub-threshold keypoint coordinates and confidence set to 0). Applied identically offline and online.
 
 ## 8. Multi-Person Strategy
 
@@ -112,7 +114,7 @@ The same feature builder must be reused verbatim in online inference.
 ## 12. Sequence Generation
 
 - **Sliding window of 30 frames** over each `(N, 69)` feature array.
-- Stride: **TBD** (commonly 1; record once chosen).
+- Stride: **15** for train/val (produces overlapping windows for data augmentation); **1** for online inference (every new frame triggers a pass).
 - Each window has shape `(30, 69)` and inherits its video's class label.
 - The Violence/NonViolence label is **video-level**, then **propagated** to each window (this is the source of label noise the motion filter addresses).
 
@@ -121,30 +123,31 @@ The same feature builder must be reused verbatim in online inference.
 - Applied **only to Violence windows**.
 - Threshold: **θ = 0.05**.
 - Goal: drop low-motion Violence windows that are likely mislabeled due to video-level annotation. (A "Violence" video can contain calm pre/post moments that are mislabeled at the window level.)
-- The exact motion statistic (e.g. mean absolute keypoint displacement, mean L2 displacement) is **TBD**; it must be computed on the normalized keypoints.
+- Motion statistic: **mean L2 displacement** of all keypoints between consecutive frames, computed on the normalized (hip-centered, shoulder-hip-scaled) keypoints.
 - **NonViolence windows are not filtered.**
 
 ## 14. Class Balancing Logic
 
 - The motion filter implicitly affects class balance by removing some Violence windows.
-- Additional balancing strategies (e.g. random undersampling of NonViolence, class weights in `BCELoss`, oversampling): **TBD**.
+- **NonViolence undersampling** applied in the train split to match the Violence count (after motion filter reduces Violence windows). Val and test splits are not undersampled.
 
 ## 15. Edge Cases
 
-| Case | Handling |
-|---|---|
-| Short videos (`< 30` sampled frames at 10 FPS) | Excluded from sequence assembly; logged |
-| Corrupt / unreadable videos | Skipped; logged |
-| Frames with **0 persons** detected | Feature vector handling **TBD**; must not crash; same rule offline + online |
-| Frames with **1 person** detected | Person-2 placeholder **TBD**; interaction distance handling **TBD** |
-| Persons fully overlapping | X-sort becomes unstable; accepted limitation (see `limitations.md`) |
-| Keypoints with `conf < 0.5` | Marked unreliable; replacement strategy **TBD** |
+| Case                                           | Handling                                                             |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| Short videos (`< 30` sampled frames at 10 FPS) | Excluded from sequence assembly; logged                              |
+| Corrupt / unreadable videos                    | Skipped; logged                                                      |
+| Frames with **0 persons** detected             | All 69 features set to **zero**; frame included; does not crash      |
+| Frames with **1 person** detected              | Person-2 features set to **zero**; interaction distance set to **0** |
+| Persons fully overlapping                      | X-sort becomes unstable; accepted limitation (see `limitations.md`)  |
+| Keypoints with `conf < 0.5`                    | Marked unreliable; replacement strategy **TBD**                      |
 
-## 16. Assumptions / Open Questions
+## 16. Resolved Items (Previously TBD)
 
-- Exact composition of the 69-dim vector: **TBD.**
-- Stride of the sliding window: **TBD.**
-- Motion statistic used by the motion filter: **TBD.**
-- Replacement rule for sub-threshold keypoints and missing persons: **TBD.**
-- Random seed for the stratified split: **TBD.**
-- Class-balancing strategy beyond the motion filter: **TBD.**
+- Stride: **15** (train/val), **1** (inference).
+- Motion statistic: **mean L2 displacement** on normalized keypoints.
+- Sub-threshold keypoint replacement: **zero-fill**.
+- Missing person-2: **zero-fill** all 34 dims + distance=0.
+- Random seed: **42**.
+- Class-balancing: **NonViolence undersampling** to match Violence count in train.
+- Dataset: **RLVS + RWF-2000** (test RLVS-only).

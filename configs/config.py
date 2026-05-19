@@ -70,8 +70,8 @@ SCHEDULER_MIN_LR = 1e-6
 
 # ── D10 / D18: Inference ───────────────────────────────────────
 FIFO_BUFFER_LENGTH = SEQUENCE_LENGTH  # 30
-SUSPICIOUS_THRESHOLD = 0.4   # p >= 0.4 → Suspicious (yellow)
-DECISION_THRESHOLD = 0.6     # p >= 0.6 → Violence (red)
+SUSPICIOUS_THRESHOLD = 0.35  # p >= 0.35 → Suspicious (yellow)
+DECISION_THRESHOLD = 0.45    # p >= 0.45 → Violence (red)
 
 # ── Temporal Smoothing ─────────────────────────────────────────
 SMOOTHING_WINDOW = 3         # Son N kararı tut

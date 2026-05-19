@@ -1,3 +1,14 @@
+# CPU-only install (default):
+#   pip install -r requirements.txt
+#
+# GPU / CUDA 12.6 install (recommended — RTX 4060 / any CUDA 12.x GPU):
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+#   pip install -r requirements.txt
+#
+# Dev environment: .venv in project root
+#   python -m venv .venv && .venv\Scripts\activate  (Windows)
+#   python -m venv .venv && source .venv/bin/activate  (Linux/macOS)
+
 torch>=2.0.0
 torchvision>=0.15.0
 opencv-python>=4.8.0

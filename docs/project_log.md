@@ -65,6 +65,33 @@
 
 ---
 
+### [2026-05-19 11:30:00] — P8.1 RWF-2000 Dataset Blending (Kaggle Notebook Update)
+
+- **Action/Task:** Updated Kaggle preprocessing notebook to blend RLVS and RWF-2000 datasets for improved model generalization.
+- **Files Affected:** `notebooks/kaggle_preprocessing.ipynb`
+- **Details/Decisions:** Added `BLEND_RWF=True` flag, RWF path `/kaggle/input/datasets/vulamnguyen/rwf2000/RWF-2000`, Fight→Violence / NonFight→NonViolence label mapping. RWF-2000 train/val added to RLVS train/val; test split kept RLVS-only to preserve baseline comparability. Kaggle notebook ran successfully on cloud GPU. Output: train 6423 seq (+96%), val 1435 seq, test 740 seq (unchanged).
+- **Issues & Resolutions:** Initial RWF path incorrect; corrected to exact Kaggle dataset path. Notebook cell structure cleaned to maintain nbformat_minor=4 compatibility.
+
+---
+
+### [2026-05-19 12:30:00] — P8.2 GPU Environment Setup + Blended Model Training
+
+- **Action/Task:** Set up CUDA-enabled virtual environment and retrained GRU model on blended dataset.
+- **Files Affected:** `.venv/` (new), `models/best_model.pt`, `models/training_log.csv`, `configs/config.py`
+- **Details/Decisions:** Created `.venv` in project root with Python 3.13. Installed PyTorch 2.12.0+cu126 (CUDA 12.6) for RTX 4060 Laptop GPU (driver 596.49, CUDA 13.2). Training speed improved ~5.6x (4.5s→0.8s/epoch). Blended model: 17 epochs, best val_loss=0.5314 at epoch 7. Test evaluation (t=0.45): Precision=0.775, Recall=0.870, F1=0.820, AUC-ROC=0.927, Accuracy=85.7%. Updated SUSPICIOUS_THRESHOLD=0.35, DECISION_THRESHOLD=0.45 in config.py.
+- **Issues & Resolutions:** CPU-only PyTorch (2.12.0+cpu) was globally installed; uninstalled and reinstalled CUDA version in venv. Old CUDA PyTorch download (2.6GB) was cached so venv install was fast.
+
+---
+
+### [2026-05-19 12:54:00] — P7.2 Interaction-Feature Ablation + Full Documentation Sync
+
+- **Action/Task:** Ran P7.2 interaction-feature ablation and synchronized all project documentation with actual implementation state.
+- **Files Affected:** `scripts/ablation_interaction_feature.py` (new), `models/ablation_no_interaction.pt`, `models/ablation_no_interaction_result.txt`, `docs/decision_log.md`, `docs/state.md`, `docs/evaluation.md`, `docs/data_pipeline.md`, `docs/architecture.md`, `docs/project-plan.md`
+- **Details/Decisions:** P7.2: Removed interaction distance (dim 68) → 68-dim input. Result: F1=0.825, AUC=0.931 (ΔF1=+0.005 vs blended baseline) — interaction feature has negligible positive contribution; decision to keep 69-dim as per D13 (locked). Added D21-D25 to decision_log.md (triple-zone, temporal smoothing, entry suppression, RWF blend, threshold 0.45). Resolved 8+ TBDs in state.md, data_pipeline.md. Updated architecture.md with triple-zone flowchart and new components. P7.3/P7.4 marked Kaggle-pending (raw videos required for normalization/motion-filter ablations).
+- **Issues & Resolutions:** None.
+
+---
+
 ### [2026-05-18 18:45:00] — P6 Inference Test + Docs Finalization
 
 - **Action/Task:** Tested real-time inference via webcam; updated deployment threshold and all project documentation.
