@@ -36,6 +36,7 @@ data/raw/
 data/features/
 data/splits/
 data/sequences/
+data/sequences_ablation_*/
 models/*.pt
 models/*.csv
 models/*.txt
