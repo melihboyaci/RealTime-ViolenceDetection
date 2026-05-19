@@ -39,6 +39,84 @@ from src.preprocessing import (
 )
 
 
+# ── Pose Visualization ─────────────────────────────────────
+
+# COCO 17 keypoint skeleton connections (parent -> child)
+SKELETON_CONNECTIONS = [
+    (0, 1), (0, 2),       # Nose to eyes
+    (1, 3), (2, 4),       # Eyes to ears
+    (0, 5), (0, 6),       # Nose to shoulders
+    (5, 7), (7, 9),       # Left arm
+    (6, 8), (8, 10),      # Right arm
+    (5, 6),               # Shoulders
+    (5, 11), (6, 12),     # Shoulders to hips
+    (11, 12),             # Hips
+    (11, 13), (13, 15),   # Left leg
+    (12, 14), (14, 16),   # Right leg
+]
+
+# COCO keypoint names for reference
+KEYPOINT_NAMES = [
+    "nose", "left_eye", "right_eye", "left_ear", "right_ear",
+    "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+    "left_wrist", "right_wrist", "left_hip", "right_hip",
+    "left_knee", "right_knee", "left_ankle", "right_ankle"
+]
+
+
+def draw_skeleton_on_frame(frame, persons, decision):
+    """Draw pose keypoints, skeleton connections, and bounding boxes on frame."""
+    if not persons:
+        return frame
+
+    # Color based on decision
+    if decision == "Violence":
+        pose_color = (0, 0, 255)      # Red
+        skeleton_color = (0, 100, 255) # Light red
+    elif decision == "Suspicious":
+        pose_color = (0, 200, 255)    # Orange
+        skeleton_color = (0, 150, 255) # Light orange
+    else:
+        pose_color = (0, 255, 0)      # Green
+        skeleton_color = (0, 200, 100) # Light green
+
+    # Draw for each detected person
+    for person_idx, person in enumerate(persons[:2]):  # Top 2 persons
+        kps = person['keypoints']  # (17, 3) array [x, y, conf]
+        bbox = person['bbox']      # [x1, y1, x2, y2, conf]
+
+        # Draw bounding box
+        x1, y1, x2, y2 = map(int, bbox[:4])
+        cv2.rectangle(frame, (x1, y1), (x2, y2), pose_color, 2)
+        label = f"P{person_idx + 1}"
+        cv2.putText(frame, label, (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, pose_color, 2)
+
+        # Draw skeleton connections first (lines behind circles)
+        valid_kps = {}  # Store valid keypoints for drawing
+        for parent_idx, child_idx in SKELETON_CONNECTIONS:
+            parent_kp = kps[parent_idx]
+            child_kp = kps[child_idx]
+
+            # Both keypoints must be valid (confidence > 0.5)
+            if parent_kp[2] > 0.5 and child_kp[2] > 0.5:
+                pt1 = (int(parent_kp[0]), int(parent_kp[1]))
+                pt2 = (int(child_kp[0]), int(child_kp[1]))
+                cv2.line(frame, pt1, pt2, skeleton_color, 2)
+                valid_kps[parent_idx] = pt1
+                valid_kps[child_idx] = pt2
+
+        # Draw keypoint circles
+        for i, kp in enumerate(kps):
+            if kp[2] > 0.5:  # Confidence threshold
+                x, y = int(kp[0]), int(kp[1])
+                # Different size for nose (index 0)
+                radius = 5 if i == 0 else 3
+                cv2.circle(frame, (x, y), radius, pose_color, -1)
+
+    return frame
+
+
 # ── Visualization ────────────────────────────────────────────
 
 def draw_overlay(frame, decision, probability, threshold, buffer_len, fps):
@@ -210,8 +288,12 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None):
                 decision = "NonViolence"
 
         # ── Visualize ─────────────────────────────────────────
+        # 1. Draw pose skeleton on original frame
+        frame_with_skeleton = draw_skeleton_on_frame(frame.copy(), persons, decision)
+
+        # 2. Add decision overlay
         display = draw_overlay(
-            frame.copy(), decision, probability, threshold,
+            frame_with_skeleton, decision, probability, threshold,
             len(buffer), fps
         )
 
