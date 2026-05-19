@@ -62,8 +62,9 @@ Test set: 740 sequences (RLVS-only, isolated). TP=241, FP=70, FN=36, TN=393.
 | P7.2 No interaction feature (68-dim)      | 0.825     | 0.931     | +0.005   |
 | P7.3 No normalization                     | 0.827     | 0.938     | +0.007   |
 | P7.3 Hip centering only                   | 0.823     | 0.937     | +0.003   |
+| P7.3 Scale only (no centering)            | 0.819     | 0.925     | -0.001   |
 
-> P7.3 variants show normalization has marginal impact on this dataset (all within ±1% F1). The full normalization (D14) is kept as it improves positional invariance across camera angles.
+> P7.3: All normalization variants are within ±1% F1 of baseline. Scale-only has the lowest precision (FP=98 vs baseline FP=70) — centering is more important than scaling for position invariance. Full normalization (D14) keeps the best Precision/Recall balance.
 
 ## 2. Dataset
 

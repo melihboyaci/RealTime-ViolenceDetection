@@ -93,7 +93,7 @@ flowchart LR
 - [x] **P7.1** Threshold ablation (RLVS-only) — _done (best F1=0.827 at t=0.4)_
 - [x] **P7.1b** Threshold ablation (blended model) — _done (best F1=0.820 at t=0.45, deployed)_
 - [x] **P7.2** Interaction-feature ablation — _done (no-interaction: F1=0.825, AUC=0.931; ΔF1=+0.005 — feature not critical)_
-- [~] **P7.3** Normalization ablation — _partial: norm_none (F1=0.827) + norm_hip_only (F1=0.823) done; norm_scale_only pending_
+- [x] **P7.3** Normalization ablation — _done: norm_none (F1=0.827), norm_hip_only (F1=0.823), norm_scale_only (F1=0.819); all within ±1% of baseline_
 - [ ] **P7.4** Motion-filter θ ablation — _pending (Kaggle preprocessing required)_
 - [x] **P8.1** RWF-2000 Kaggle preprocessing notebook update — _done (notebooks/kaggle_preprocessing.ipynb v2)_
 - [x] **P8.2** Blended sequences downloaded + local training — _done (train 6423 seq, GPU RTX 4060)_
