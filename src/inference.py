@@ -254,5 +254,9 @@ if __name__ == "__main__":
                         help="Directory to save collected samples for fine-tuning")
     args = parser.parse_args()
 
-    source = int(args.source) if args.source.isdigit() else args.source
+    if isinstance(args.source, str) and args.source.isdigit():
+        source = int(args.source)
+    else:
+        source = args.source
+
     run_inference(source=source, threshold=args.threshold, save_dir=args.collect)
