@@ -21,6 +21,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+src/__pycache__/
 
 # Virtual Environment
 .env
@@ -37,6 +38,7 @@ data/features/
 data/splits/
 data/sequences/
 data/sequences_ablation_*/
+data/sequences_motion_*/
 models/*.pt
 models/*.csv
 models/*.txt
