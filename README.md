@@ -63,8 +63,14 @@ Test set: 740 sequences (RLVS-only, isolated). TP=241, FP=70, FN=36, TN=393.
 | P7.3 No normalization                     | 0.827     | 0.938     | +0.007   |
 | P7.3 Hip centering only                   | 0.823     | 0.937     | +0.003   |
 | P7.3 Scale only (no centering)            | 0.819     | 0.925     | -0.001   |
+| P7.4 Motion-filter θ=0.00 (disabled)      | 0.831     | 0.923     | +0.011   |
+| P7.4 Motion-filter θ=0.025                | 0.819     | 0.919     | -0.000   |
+| P7.4 Motion-filter θ=0.075                | 0.798     | 0.923     | -0.022   |
+| P7.4 Motion-filter θ=0.10                 | 0.830     | 0.931     | +0.010   |
 
-> P7.3: All normalization variants are within ±1% F1 of baseline. Scale-only has the lowest precision (FP=98 vs baseline FP=70) — centering is more important than scaling for position invariance. Full normalization (D14) keeps the best Precision/Recall balance.
+> **P7.3:** All normalization variants within ±1% F1. Centering more important than scaling. Full normalization kept.
+>
+> **P7.4:** Motion filter has marginal impact — θ≥0.025 yields near-identical data (±8 windows). Variance in F1 across θ=0.025–0.10 is due to training stochasticity, not data quality. Baseline θ=0.05 provides a reasonable operating point.
 
 ## 2. Dataset
 

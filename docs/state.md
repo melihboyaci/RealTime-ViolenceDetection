@@ -53,7 +53,7 @@ As of the last session (2026-05-19):
 - **P7.1 done:** Threshold ablation → deployed t=0.45.
 - **P7.2 done:** Interaction-feature ablation → F1=0.825, AUC=0.931 without interaction distance (ΔF1=+0.005).
 - **P7.3 done:** Normalization ablation — norm_none (F1=0.827), norm_hip_only (F1=0.823), norm_scale_only (F1=0.819). All within ±1% F1 of baseline. Full normalization keeps best Prec/Recall balance.
-- **P7.4 pending:** Motion-filter θ ablation — Kaggle session required (re-run Cell 1 + Cell 7 with different θ values).
+- **P7.4 done:** Motion-filter θ ablation — θ=0.00 (F1=0.831), θ=0.025 (F1=0.819), θ=0.075 (F1=0.798), θ=0.10 (F1=0.830). Filter has marginal impact; baseline θ=0.05 kept.
 - **Dev env:** `.venv` in project root, PyTorch 2.12.0+cu126, RTX 4060 Laptop GPU.
 
 ## 4. Implementation Status Template
