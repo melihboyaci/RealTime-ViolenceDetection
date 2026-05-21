@@ -98,3 +98,12 @@
 - **Files Affected:** `configs/config.py`, `docs/evaluation.md`, `docs/decision_log.md`, `docs/project-plan.md`
 - **Details/Decisions:** DECISION_THRESHOLD updated from 0.7 to 0.4 (val-tuned). Installed `ultralytics` locally for inference. Webcam inference verified working (FIFO buffer fills, decisions rendered on screen). `evaluation.md` results table filled with actual metrics. `project-plan.md` P7.1 marked done. `decision_log.md` §3 updated with deployed threshold rationale.
 - **Issues & Resolutions:** `ultralytics` was not installed locally (only used on Kaggle previously); installed via pip. Inference runs on CPU (~5-10 FPS with YOLOv8n-Pose).
+
+---
+
+### [2026-05-21 12:42:00] — Cascade
+
+- **Action/Task:** Added an online pose quality gate to suppress partial-head/invalid-torso false Violence decisions during live inference.
+- **Files Affected:** `configs/config.py`, `src/inference.py`, `README.md`, `docs/decision_log.md`, `docs/state.md`, `docs/project-plan.md`, `docs/project_log.md`
+- **Details/Decisions:** Introduced D26 with balanced thresholds: at least 6 valid keypoints, at least 2 torso keypoints, and bbox area ratio ≥ 0.02 before a detected person can enter the FIFO buffer and GRU inference. Invalid frames clear the buffer and show `No Valid Pose`, preserving the 69-dim feature format and offline preprocessing chain.
+- **Issues & Resolutions:** User observed head-only/side-profile false Violence at live webcam. Resolved by gating online inference before GRU rather than changing the trained model or offline preprocessing.

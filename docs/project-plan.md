@@ -95,6 +95,7 @@ flowchart LR
 - [x] **P7.2** Interaction-feature ablation — _done (no-interaction: F1=0.825, AUC=0.931; ΔF1=+0.005 — feature not critical)_
 - [x] **P7.3** Normalization ablation — _done: norm_none (F1=0.827), norm_hip_only (F1=0.823), norm_scale_only (F1=0.819); all within ±1% of baseline_
 - [x] **P7.4** Motion-filter θ ablation — _done: θ=0.00 (F1=0.831), θ=0.025 (F1=0.819), θ=0.075 (F1=0.798), θ=0.10 (F1=0.830); marginal impact, baseline θ=0.05 kept_
+- [x] **P7.5** Online pose quality gate — _done (partial head/invalid torso detections suppressed before GRU inference)_
 - [x] **P8.1** RWF-2000 Kaggle preprocessing notebook update — _done (notebooks/kaggle_preprocessing.ipynb v2)_
 - [x] **P8.2** Blended sequences downloaded + local training — _done (train 6423 seq, GPU RTX 4060)_
 - [x] **P8.3** Blended model evaluation — _done (test F1=0.820, AUC=0.927 at t=0.45)_

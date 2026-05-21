@@ -29,6 +29,10 @@ from configs.config import (
     SMOOTHING_WINDOW,
     SMOOTHING_MIN_COUNT,
     ENTRY_SUPPRESSION_FRAMES,
+    KEYPOINT_CONFIDENCE_THRESHOLD,
+    MIN_VALID_KEYPOINTS_FOR_INFERENCE,
+    MIN_TORSO_KEYPOINTS_FOR_INFERENCE,
+    MIN_PERSON_BBOX_AREA_RATIO,
 )
 from src.model import ViolenceGRU
 from src.preprocessing import (
@@ -62,6 +66,34 @@ KEYPOINT_NAMES = [
     "left_wrist", "right_wrist", "left_hip", "right_hip",
     "left_knee", "right_knee", "left_ankle", "right_ankle"
 ]
+
+TORSO_KEYPOINT_INDICES = (5, 6, 11, 12)
+
+
+def is_valid_person_pose(person, frame_shape):
+    keypoints = person["keypoints"]
+    valid_keypoint_count = int(
+        np.sum(keypoints[:, 2] >= KEYPOINT_CONFIDENCE_THRESHOLD)
+    )
+    torso_keypoint_count = int(
+        np.sum(
+            keypoints[list(TORSO_KEYPOINT_INDICES), 2]
+            >= KEYPOINT_CONFIDENCE_THRESHOLD
+        )
+    )
+
+    frame_area = frame_shape[0] * frame_shape[1]
+    bbox_area_ratio = person["bbox_area"] / frame_area if frame_area > 0 else 0.0
+
+    return (
+        valid_keypoint_count >= MIN_VALID_KEYPOINTS_FOR_INFERENCE
+        and torso_keypoint_count >= MIN_TORSO_KEYPOINTS_FOR_INFERENCE
+        and bbox_area_ratio >= MIN_PERSON_BBOX_AREA_RATIO
+    )
+
+
+def filter_valid_persons(persons, frame_shape):
+    return [person for person in persons if is_valid_person_pose(person, frame_shape)]
 
 
 def draw_skeleton_on_frame(frame, persons, decision):
@@ -161,6 +193,20 @@ def draw_overlay(frame, decision, probability, threshold, buffer_len, fps):
     return frame
 
 
+def draw_pose_quality(frame, valid_count, total_count):
+    h = frame.shape[0]
+    cv2.putText(
+        frame,
+        f"Valid poses: {valid_count}/{total_count}",
+        (10, h - 65),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (200, 200, 200),
+        1,
+    )
+    return frame
+
+
 # ── Main Inference Loop ──────────────────────────────────────
 
 def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display=True):
@@ -235,11 +281,12 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
         # ── Per-frame pipeline ────────────────────────────────
         preprocessed = preprocess_frame(frame)
         persons = extract_pose(preprocessed, pose_model)
-        p1, p2 = select_top2_persons(persons)
-        fv = build_feature_vector(p1, p2, RESIZE_DIM[0])
+        valid_persons = filter_valid_persons(persons, preprocessed.shape)
+        p1, p2 = select_top2_persons(valid_persons)
+        has_valid_pose = p1 is not None
 
         # ── Entry Suppression ─────────────────────────────────
-        current_person_count = len(persons)
+        current_person_count = len(valid_persons)
         if prev_person_count == 0 and current_person_count > 0:
             suppression_counter = ENTRY_SUPPRESSION_FRAMES
             buffer.clear()
@@ -249,10 +296,18 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
         if suppression_counter > 0:
             suppression_counter -= 1
 
-        buffer.append(fv)
+        if has_valid_pose:
+            fv = build_feature_vector(p1, p2, RESIZE_DIM[0])
+            buffer.append(fv)
+        else:
+            buffer.clear()
+            decision_history.clear()
 
         # ── Decision ──────────────────────────────────────────
-        if suppression_counter > 0:
+        if not has_valid_pose:
+            decision = "No Valid Pose"
+            probability = None
+        elif suppression_counter > 0:
             decision = "Warming Up"
             probability = None
         elif len(buffer) < FIFO_BUFFER_LENGTH:
@@ -294,12 +349,17 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
         if display:
             # ── Visualize ─────────────────────────────────────
             # 1. Draw pose skeleton on original frame
-            frame_with_skeleton = draw_skeleton_on_frame(frame.copy(), persons, decision)
+            frame_with_skeleton = draw_skeleton_on_frame(
+                frame.copy(), valid_persons, decision
+            )
 
             # 2. Add decision overlay
             display_frame = draw_overlay(
                 frame_with_skeleton, decision, probability, threshold,
                 len(buffer), fps
+            )
+            display_frame = draw_pose_quality(
+                display_frame, len(valid_persons), len(persons)
             )
 
             try:
@@ -322,7 +382,14 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
         elif probability is not None:
             print(
                 f"decision={decision:12s} prob={probability:.3f} "
-                f"buffer={len(buffer)}/{FIFO_BUFFER_LENGTH} fps={fps:.1f}"
+                f"buffer={len(buffer)}/{FIFO_BUFFER_LENGTH} "
+                f"valid_poses={len(valid_persons)}/{len(persons)} fps={fps:.1f}"
+            )
+        elif not display:
+            print(
+                f"decision={decision:12s} prob=None "
+                f"buffer={len(buffer)}/{FIFO_BUFFER_LENGTH} "
+                f"valid_poses={len(valid_persons)}/{len(persons)} fps={fps:.1f}"
             )
 
     cap.release()

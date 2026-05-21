@@ -31,6 +31,7 @@ Authoritative record of architectural and methodological decisions. Any future c
 | D23 | Entry suppression             | **30-frame warm-up** on new person detection (0 → N persons transition clears buffer and suppresses output)       | No suppression; track-based suppression                                             | Prevents false alarms caused by partially-filled FIFO buffer immediately after a new person enters frame                                                                                | Implemented in src/inference.py                           |
 | D24 | Training dataset              | **RLVS (2000 videos) + RWF-2000 (2000 videos)** blended for train/val; test is RLVS-only (15% stratified)         | RLVS-only; full RWF-2000 including test                                             | RWF-2000 provides diverse camera angles and lighting; test isolation preserved so RLVS baseline comparison remains valid                                                                | Kaggle notebook v2 (notebooks/kaggle_preprocessing.ipynb) |
 | D25 | Deployed decision threshold   | **0.45** (val-tuned on blended model, best F1=0.820 on RLVS test split)                                           | 0.7 (initial); 0.4 (RLVS-only tuned)                                                | Blended model sigmoid distribution shifted slightly; re-ablation on blended val split found 0.45 maximises F1 while maintaining AUC=0.927                                               | scripts/threshold_ablation.py                             |
+| D26 | Online pose quality gate      | **Balanced gate**: at least 6 valid keypoints, 2 torso keypoints, and bbox area ratio ≥ 0.02 before GRU inference | Passing partial head/face-only detections directly to GRU                           | Suppresses false Violence decisions when only partial heads or invalid torso poses are visible; does not alter offline preprocessing or 69-dim feature format                          | Implemented in src/inference.py                           |
 
 ## 2. Locked Decisions
 
@@ -65,6 +66,7 @@ The following are **locked**. Changing any of them requires:
 - D23 — Entry suppression: 30-frame warm-up on new person
 - D24 — Dataset: RLVS + RWF-2000 blend (test RLVS-only)
 - D25 — Deployed threshold: **0.45** (blended model, val-tuned)
+- D26 — Online pose quality gate: **6 keypoints + 2 torso keypoints + bbox area ratio ≥ 0.02**
 
 ## 3. What May Still Change
 

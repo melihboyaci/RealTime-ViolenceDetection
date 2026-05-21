@@ -29,13 +29,15 @@ A real-time violence detection system that operates entirely on **skeletal pose 
     ▼  Online Inference (real-time)
     ├─ Same frame preprocessing
     ├─ FIFO buffer (30 frames)
+    ├─ Pose quality gate (partial head/invalid torso → No Valid Pose)
     ├─ GRU → sigmoid score
     ├─ Triple-zone decision (t=0.45):
     │    score < 0.35  →  NonViolence
     │    0.35–0.45     →  Suspicious
     │    score ≥ 0.45  →  Violence
     ├─ Temporal smoothing (3-window majority)
-    └─ Entry suppression (30f on new person)
+    ├─ Entry suppression (30f on new person)
+    └─ Pose quality gate (6 keypoints + 2 torso keypoints + bbox area ≥ 0.02)
 ```
 
 ## 1. Results
@@ -141,6 +143,7 @@ src/            — preprocessing.py, model.py, dataset.py, train.py, evaluate.p
 | Model                  | 2-layer GRU                          | Temporal sequence; lightweight for real-time    |
 | Dataset blend          | RLVS + RWF-2000                      | Reduces domain overfitting (+21% training data) |
 | Decision zones         | 3-zone (NV / Suspicious / Violence)  | Reduces false alarm fatigue                     |
+| Pose quality gate      | 6 keypoints + 2 torso keypoints      | Suppresses partial-head false positives         |
 
 Full decision log: [`docs/decision_log.md`](docs/decision_log.md)
 
@@ -150,6 +153,7 @@ Full decision log: [`docs/decision_log.md`](docs/decision_log.md)
 - **Pose-only:** weapons, blood, and context invisible to the model.
 - **X-axis sorting instability:** persons can flip identity during crossing/overlap (see `docs/limitations.md`).
 - **Single dataset domain:** trained on YouTube clips; performance may drop on top-down/fisheye surveillance cameras.
+- **Partial-body views:** online pose quality gate suppresses head-only/invalid torso detections instead of forcing GRU decisions.
 - **Video-level labels:** label noise mitigated by motion filter but not eliminated.
 
 Full limitations: [`docs/limitations.md`](docs/limitations.md)
@@ -162,5 +166,5 @@ Full limitations: [`docs/limitations.md`](docs/limitations.md)
 | `docs/data_pipeline.md` | Full data lifecycle, normalization, sequencing |
 | `docs/evaluation.md`    | Metrics, threshold analysis, ablation suite    |
 | `docs/limitations.md`   | Accepted trade-offs and known issues           |
-| `docs/decision_log.md`  | Authoritative locked decisions (D1–D25)        |
+| `docs/decision_log.md`  | Authoritative locked decisions (D1–D26)        |
 | `docs/state.md`         | Current project state snapshot                 |

@@ -80,6 +80,11 @@ SMOOTHING_MIN_COUNT = 2      # N'den en az kaçı Violence/Suspicious olmalı
 # ── Entry Suppression ──────────────────────────────────────────
 ENTRY_SUPPRESSION_FRAMES = 30  # Yeni kişi belirdiğinde N frame boyunca karar verme
 
+# ── Online Pose Quality Gate ───────────────────────────────────
+MIN_VALID_KEYPOINTS_FOR_INFERENCE = 6
+MIN_TORSO_KEYPOINTS_FOR_INFERENCE = 2
+MIN_PERSON_BBOX_AREA_RATIO = 0.02
+
 # ── Class Labels ────────────────────────────────────────────────
 VIOLENCE_LABEL = 1
 NONVIOLENCE_LABEL = 0

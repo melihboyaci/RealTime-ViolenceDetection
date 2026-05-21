@@ -23,6 +23,7 @@ This file captures the **current project state** so any AI agent or human contri
 | Loss / optimizer              | **BCELoss**, **Adam**                                                                                              |
 | Training                      | max **100 epochs**, batch **32**, **early stopping on val_loss**, **best by lowest val_loss**                      |
 | Inference buffer              | **FIFO 30 frames**                                                                                                 |
+| Online pose quality gate      | **6 valid keypoints + 2 torso keypoints + bbox area ratio ≥ 0.02** before GRU inference                            |
 | Initial decision threshold    | **0.7**                                                                                                            |
 | Evaluation                    | confusion matrix, precision, recall, F1, AUC-ROC, plus ablations                                                   |
 | Stack                         | OpenCV, YOLOv8n-Pose, PyTorch, GRU                                                                                 |
@@ -49,7 +50,7 @@ As of the last session (2026-05-19):
   - train: 6423 seq (V=3227, NV=3196) | val: 1435 seq | test: 740 seq (RLVS-only)
 - **Model:** `models/best_model.pt` — ViolenceGRU, 115,777 params, best val_loss=0.5314 (epoch 7).
 - **Evaluation:** test F1=0.820, AUC=0.927 at threshold=0.45.
-- **Inference:** `src/inference.py` — triple-zone decision, temporal smoothing (3-window), entry suppression (30f), sample collection.
+- **Inference:** `src/inference.py` — pose quality gate, triple-zone decision, temporal smoothing (3-window), entry suppression (30f), sample collection.
 - **P7.1 done:** Threshold ablation → deployed t=0.45.
 - **P7.2 done:** Interaction-feature ablation → F1=0.825, AUC=0.931 without interaction distance (ΔF1=+0.005).
 - **P7.3 done:** Normalization ablation — norm_none (F1=0.827), norm_hip_only (F1=0.823), norm_scale_only (F1=0.819). All within ±1% F1 of baseline. Full normalization keeps best Prec/Recall balance.
@@ -93,6 +94,7 @@ These are the points an agent **must not silently change**:
 9. **GRU** model with sigmoid + **BCELoss** + **Adam**.
 10. **70 / 15 / 15** stratified split.
 11. Inference **FIFO 30 frames**, initial **threshold 0.7**.
+12. Online pose quality gate: **6 valid keypoints + 2 torso keypoints + bbox area ratio ≥ 0.02** before GRU inference.
 
 Any change to these requires a new entry in `decision_log.md` and re-running the relevant ablations.
 
