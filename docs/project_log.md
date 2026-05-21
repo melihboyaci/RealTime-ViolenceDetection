@@ -107,3 +107,21 @@
 - **Files Affected:** `configs/config.py`, `src/inference.py`, `README.md`, `docs/decision_log.md`, `docs/state.md`, `docs/project-plan.md`, `docs/project_log.md`
 - **Details/Decisions:** Introduced D26 with balanced thresholds: at least 6 valid keypoints, at least 2 torso keypoints, and bbox area ratio ≥ 0.02 before a detected person can enter the FIFO buffer and GRU inference. Invalid frames clear the buffer and show `No Valid Pose`, preserving the 69-dim feature format and offline preprocessing chain.
 - **Issues & Resolutions:** User observed head-only/side-profile false Violence at live webcam. Resolved by gating online inference before GRU rather than changing the trained model or offline preprocessing.
+
+---
+
+### [2026-05-21 13:10:00] — Cascade
+
+- **Action/Task:** Implemented professional OpenCV info panel (P9) — camera frame + dark sidebar displayed side-by-side.
+- **Files Affected:** `src/overlay_panel.py` (new), `src/inference.py`, `docs/project-plan.md`, `docs/project_log.md`
+- **Details/Decisions:** Panel (320px wide, dark theme) shows: decision with color, probability bar with threshold marker, buffer/FPS/pose status, simplified stick-figure keypoint diagram (valid=green filled, invalid=gray hollow), last 10 decisions with timestamps, color legend, model info, keyboard shortcuts. No external dependencies added; pure OpenCV + numpy rendering. Inference pipeline unchanged.
+- **Issues & Resolutions:** None.
+
+---
+
+### [2026-05-21 14:31:00] — Cascade
+
+- **Action/Task:** Implemented optional CustomTkinter GUI panel for online inference.
+- **Files Affected:** `src/inference_engine.py`, `src/ui_app.py`, `src/inference.py`, `requirements.txt`, `README.md`, `docs/state.md`, `docs/project-plan.md`, `docs/project_log.md`
+- **Details/Decisions:** Added a thread-safe `InferenceEngine` that preserves the online inference pipeline while exposing state to a modern dark CustomTkinter dashboard. The GUI includes live video, decision label, probability bar, live threshold slider, buffer/FPS/pose counters, dual-person pose quality canvases, scrollable history, model info, and keyboard shortcuts. Existing OpenCV CLI mode remains available; `--gui` enables the new interface.
+- **Issues & Resolutions:** OpenCV-only panel was visually limited and layout could shift under dynamic history/pose states. Resolved by moving GUI presentation to real widgets in CustomTkinter while keeping OpenCV inference as fallback.

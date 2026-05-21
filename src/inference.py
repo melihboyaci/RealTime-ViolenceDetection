@@ -12,6 +12,7 @@ import os
 import sys
 import time
 from collections import deque
+from datetime import datetime
 
 import cv2
 import numpy as np
@@ -41,6 +42,7 @@ from src.preprocessing import (
     select_top2_persons,
     build_feature_vector,
 )
+from src.overlay_panel import build_info_panel, compose_display
 
 
 # ── Pose Visualization ─────────────────────────────────────
@@ -244,6 +246,9 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
     prev_person_count = 0
     suppression_counter = 0
 
+    # Panel decision history log (last 10 with timestamps)
+    decision_history_log = deque(maxlen=10)
+
     # Sample collection setup
     if save_dir:
         os.makedirs(os.path.join(save_dir, "violence"), exist_ok=True)
@@ -346,6 +351,9 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
             else:
                 decision = "NonViolence"
 
+        # ── Log decision for panel history ────────────────────
+        decision_history_log.append((datetime.now(), decision))
+
         if display:
             # ── Visualize ─────────────────────────────────────
             # 1. Draw pose skeleton on original frame
@@ -353,14 +361,23 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
                 frame.copy(), valid_persons, decision
             )
 
-            # 2. Add decision overlay
-            display_frame = draw_overlay(
-                frame_with_skeleton, decision, probability, threshold,
-                len(buffer), fps
+            # 2. Build info panel (pass up to 2 valid persons)
+            info_panel = build_info_panel(
+                frame_height=frame_with_skeleton.shape[0],
+                decision=decision,
+                probability=probability,
+                threshold=threshold,
+                buffer_len=len(buffer),
+                buffer_max=FIFO_BUFFER_LENGTH,
+                valid_poses=len(valid_persons),
+                total_poses=len(persons),
+                fps=fps,
+                persons=valid_persons[:2],
+                decision_history=decision_history_log,
             )
-            display_frame = draw_pose_quality(
-                display_frame, len(valid_persons), len(persons)
-            )
+
+            # 3. Compose frame + panel side by side
+            display_frame = compose_display(frame_with_skeleton, info_panel)
 
             try:
                 cv2.imshow("Violence Detection", display_frame)

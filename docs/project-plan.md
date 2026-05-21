@@ -100,6 +100,8 @@ flowchart LR
 - [x] **P8.2** Blended sequences downloaded + local training — _done (train 6423 seq, GPU RTX 4060)_
 - [x] **P8.3** Blended model evaluation — _done (test F1=0.820, AUC=0.927 at t=0.45)_
 - [x] **P8.4** Full documentation sync — _done (2026-05-19)_
+- [x] **P9** Professional OpenCV info panel — _done (side-by-side camera + dark info panel with decision, probability, pose diagram, history, legend, model info, keys)_
+- [x] **P10** CustomTkinter GUI panel — _done (modern dark UI, live threshold slider, dual pose quality canvas, scrollable history)_
 
 ## 7. "Do Not Start Before" Notes
 

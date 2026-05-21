@@ -94,11 +94,33 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
 pip install -r requirements.txt
 ```
 
-### Real-Time Inference (webcam)
+### Real-Time Inference
+
+Launches a native OpenCV window with a 380px dark info panel alongside the camera feed.
+The panel shows: decision label, probability bar, buffer/FPS/pose status, dual stick-figure pose quality diagrams for up to 2 persons, decision history (last 5), and model info.
 
 ```bash
+# Webcam (default source 0)
 python -m src.inference
+
+# Custom video file and threshold
+python -m src.inference --source path/to/video.mp4 --threshold 0.45
+
+# Collect samples for fine-tuning (press V or N during inference)
+python -m src.inference --collect data/collected_samples/
+
+# Headless — print decisions to terminal only
+python -m src.inference --no-display
 ```
+
+#### CLI Options Reference
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `--source` | `str/int` | `0` | Camera index (`0`) or path to a video file. |
+| `--threshold` | `float` | `0.45` | Decision boundary. Scores ≥ threshold → Violence. |
+| `--collect` | `str` | `None` | Directory to save 30-frame `.npy` sequences (V/N keys). |
+| `--no-display` | `flag` | `False` | Run headless; results printed to terminal. |
 
 ### Inference on a Video File
 
@@ -144,6 +166,7 @@ src/            — preprocessing.py, model.py, dataset.py, train.py, evaluate.p
 | Dataset blend          | RLVS + RWF-2000                      | Reduces domain overfitting (+21% training data) |
 | Decision zones         | 3-zone (NV / Suspicious / Violence)  | Reduces false alarm fatigue                     |
 | Pose quality gate      | 6 keypoints + 2 torso keypoints      | Suppresses partial-head false positives         |
+| Info panel             | Fixed-slot OpenCV sidebar (380px)    | Zero extra deps, stable layout, full-speed render |
 
 Full decision log: [`docs/decision_log.md`](docs/decision_log.md)
 

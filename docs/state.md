@@ -38,7 +38,7 @@ This file captures the **current project state** so any AI agent or human contri
 | Hardware target for online inference                 | Tested on RTX 4060 Laptop GPU; runs on CPU (~5-10 FPS with YOLOv8n-Pose)  |
 | Final tuned decision threshold (post-evaluation)     | **0.45** (blended model, val-tuned, test F1=0.820, AUC=0.927)             |
 | Logging / experiment tracker (e.g. TensorBoard, W&B) | CSV log only (`models/training_log.csv`)                                  |
-| Deployment surface (CLI / web / RTSP)                | CLI via `python -m src.inference` (webcam + file support)                 |
+| Deployment surface (CLI / GUI / web / RTSP)          | CLI via `python -m src.inference`; optional CustomTkinter GUI via `--gui` |
 | Class-balancing strategy beyond motion filter        | NonViolence undersampling in train split to match Violence count          |
 
 ## 3. Current Pipeline Stage (Actual)
@@ -50,7 +50,7 @@ As of the last session (2026-05-19):
   - train: 6423 seq (V=3227, NV=3196) | val: 1435 seq | test: 740 seq (RLVS-only)
 - **Model:** `models/best_model.pt` — ViolenceGRU, 115,777 params, best val_loss=0.5314 (epoch 7).
 - **Evaluation:** test F1=0.820, AUC=0.927 at threshold=0.45.
-- **Inference:** `src/inference.py` — pose quality gate, triple-zone decision, temporal smoothing (3-window), entry suppression (30f), sample collection.
+- **Inference:** `src/inference.py` — pose quality gate, triple-zone decision, temporal smoothing (3-window), entry suppression (30f), sample collection, optional CustomTkinter GUI.
 - **P7.1 done:** Threshold ablation → deployed t=0.45.
 - **P7.2 done:** Interaction-feature ablation → F1=0.825, AUC=0.931 without interaction distance (ΔF1=+0.005).
 - **P7.3 done:** Normalization ablation — norm_none (F1=0.827), norm_hip_only (F1=0.823), norm_scale_only (F1=0.819). All within ±1% F1 of baseline. Full normalization keeps best Prec/Recall balance.
