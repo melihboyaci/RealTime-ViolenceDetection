@@ -163,7 +163,7 @@ def draw_overlay(frame, decision, probability, threshold, buffer_len, fps):
 
 # ── Main Inference Loop ──────────────────────────────────────
 
-def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None):
+def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display=True):
     """
     Run real-time inference on a video source.
 
@@ -171,6 +171,7 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None):
         source: 0 for webcam, or path to video file
         threshold: decision threshold (default 0.6)
         save_dir: directory to save collected samples (None = no collection)
+        display: show OpenCV preview window if True
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
@@ -214,7 +215,10 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None):
     print(f"\nInference started (source={source}, threshold={threshold})")
     print(f"Smoothing: {SMOOTHING_MIN_COUNT}/{SMOOTHING_WINDOW} windows required")
     print(f"Entry suppression: {ENTRY_SUPPRESSION_FRAMES} frames")
-    print("Press 'q' to quit.\n")
+    if display:
+        print("Press 'q' to quit.\n")
+    else:
+        print("Display disabled. Press Ctrl+C to stop.\n")
 
     prev_time = time.time()
 
@@ -287,30 +291,43 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None):
             else:
                 decision = "NonViolence"
 
-        # ── Visualize ─────────────────────────────────────────
-        # 1. Draw pose skeleton on original frame
-        frame_with_skeleton = draw_skeleton_on_frame(frame.copy(), persons, decision)
+        if display:
+            # ── Visualize ─────────────────────────────────────
+            # 1. Draw pose skeleton on original frame
+            frame_with_skeleton = draw_skeleton_on_frame(frame.copy(), persons, decision)
 
-        # 2. Add decision overlay
-        display = draw_overlay(
-            frame_with_skeleton, decision, probability, threshold,
-            len(buffer), fps
-        )
+            # 2. Add decision overlay
+            display_frame = draw_overlay(
+                frame_with_skeleton, decision, probability, threshold,
+                len(buffer), fps
+            )
 
-        cv2.imshow("Violence Detection", display)
+            try:
+                cv2.imshow("Violence Detection", display_frame)
+                key = cv2.waitKey(1) & 0xFF
+            except cv2.error as error:
+                print(f"OpenCV display unavailable: {error}")
+                print("Continuing in no-display mode.")
+                display = False
+                key = 255
 
-        # ── Key handling ──────────────────────────────────────
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
-        elif save_dir and len(buffer) == FIFO_BUFFER_LENGTH:
-            if key == ord('v'):
-                _save_sample(buffer, save_dir, "violence")
-            elif key == ord('n'):
-                _save_sample(buffer, save_dir, "nonviolence")
+            # ── Key handling ──────────────────────────────────
+            if key == ord('q'):
+                break
+            elif save_dir and len(buffer) == FIFO_BUFFER_LENGTH:
+                if key == ord('v'):
+                    _save_sample(buffer, save_dir, "violence")
+                elif key == ord('n'):
+                    _save_sample(buffer, save_dir, "nonviolence")
+        elif probability is not None:
+            print(
+                f"decision={decision:12s} prob={probability:.3f} "
+                f"buffer={len(buffer)}/{FIFO_BUFFER_LENGTH} fps={fps:.1f}"
+            )
 
     cap.release()
-    cv2.destroyAllWindows()
+    if display:
+        cv2.destroyAllWindows()
     print("Inference stopped.")
 
 
@@ -334,6 +351,8 @@ if __name__ == "__main__":
                         help=f"Decision threshold (default: {DECISION_THRESHOLD})")
     parser.add_argument("--collect", type=str, default=None,
                         help="Directory to save collected samples for fine-tuning")
+    parser.add_argument("--no-display", action="store_true",
+                        help="Run without OpenCV preview window")
     args = parser.parse_args()
 
     if isinstance(args.source, str) and args.source.isdigit():
@@ -341,4 +360,9 @@ if __name__ == "__main__":
     else:
         source = args.source
 
-    run_inference(source=source, threshold=args.threshold, save_dir=args.collect)
+    run_inference(
+        source=source,
+        threshold=args.threshold,
+        save_dir=args.collect,
+        display=not args.no_display,
+    )
