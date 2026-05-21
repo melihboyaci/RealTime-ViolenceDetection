@@ -98,10 +98,16 @@ def filter_valid_persons(persons, frame_shape):
     return [person for person in persons if is_valid_person_pose(person, frame_shape)]
 
 
-def draw_skeleton_on_frame(frame, persons, decision):
+def draw_skeleton_on_frame(frame, persons, decision, preprocessed_shape=(640, 640)):
     """Draw pose keypoints, skeleton connections, and bounding boxes on frame."""
     if not persons:
         return frame
+
+    # Calculate scaling factors to map from preprocessed 640x640 back to original frame
+    orig_h, orig_w = frame.shape[:2]
+    prep_h, prep_w = preprocessed_shape[:2]
+    scale_x = orig_w / prep_w
+    scale_y = orig_h / prep_h
 
     # Color based on decision
     if decision == "Violence":
@@ -120,7 +126,10 @@ def draw_skeleton_on_frame(frame, persons, decision):
         bbox = person['bbox']      # [x1, y1, x2, y2, conf]
 
         # Draw bounding box
-        x1, y1, x2, y2 = map(int, bbox[:4])
+        x1 = int(bbox[0] * scale_x)
+        y1 = int(bbox[1] * scale_y)
+        x2 = int(bbox[2] * scale_x)
+        y2 = int(bbox[3] * scale_y)
         cv2.rectangle(frame, (x1, y1), (x2, y2), pose_color, 2)
         label = f"P{person_idx + 1}"
         cv2.putText(frame, label, (x1, y1 - 10),
@@ -134,8 +143,8 @@ def draw_skeleton_on_frame(frame, persons, decision):
 
             # Both keypoints must be valid (confidence > 0.5)
             if parent_kp[2] > 0.5 and child_kp[2] > 0.5:
-                pt1 = (int(parent_kp[0]), int(parent_kp[1]))
-                pt2 = (int(child_kp[0]), int(child_kp[1]))
+                pt1 = (int(parent_kp[0] * scale_x), int(parent_kp[1] * scale_y))
+                pt2 = (int(child_kp[0] * scale_x), int(child_kp[1] * scale_y))
                 cv2.line(frame, pt1, pt2, skeleton_color, 2)
                 valid_kps[parent_idx] = pt1
                 valid_kps[child_idx] = pt2
@@ -143,7 +152,7 @@ def draw_skeleton_on_frame(frame, persons, decision):
         # Draw keypoint circles
         for i, kp in enumerate(kps):
             if kp[2] > 0.5:  # Confidence threshold
-                x, y = int(kp[0]), int(kp[1])
+                x, y = int(kp[0] * scale_x), int(kp[1] * scale_y)
                 # Different size for nose (index 0)
                 radius = 5 if i == 0 else 3
                 cv2.circle(frame, (x, y), radius, pose_color, -1)
@@ -359,7 +368,7 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
             # ── Visualize ─────────────────────────────────────
             # 1. Draw pose skeleton on original frame
             frame_with_skeleton = draw_skeleton_on_frame(
-                frame.copy(), valid_persons, decision
+                frame.copy(), valid_persons, decision, preprocessed.shape
             )
 
             # 2. Build info panel (pass up to 2 valid persons)
