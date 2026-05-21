@@ -43,17 +43,17 @@ INVALID_KP_COLOR    = (70,  70,  70)
 # ── Fixed slot boundaries ─────────────────────────────────────
 # All y-values are absolute pixel positions in the panel.
 
-SLOT_DECISION   = (0,   58)
-SLOT_PROB       = (58,  122)
-SLOT_STATUS     = (122, 188)
-SLOT_POSE       = (188, 328)
-SLOT_HISTORY    = (328, 418)
-SLOT_FOOTER     = (418, 480)
+SLOT_DECISION   = (0,   58)   # (start_y, height)
+SLOT_PROB       = (58,  64)
+SLOT_STATUS     = (122, 66)
+SLOT_POSE       = (188, 140)
+SLOT_HISTORY    = (328, 90)
+SLOT_FOOTER     = (418, 62)
 
 PANEL_WIDTH     = 380
 PANEL_HEIGHT    = 480   # matches standard 480p camera height
 
-HISTORY_ROWS    = 5     # fixed number of history rows rendered
+HISTORY_ROWS    = 4     # fixed number of history rows rendered
 
 # ── Keypoint diagram positions (relative, 70×120 bounding box) ─
 
@@ -133,8 +133,8 @@ def _draw_decision(panel, decision):
 
 def _draw_probability(panel, probability, threshold):
     """Slot 1: probability bar with threshold marker and text inside bar."""
-    sy, _ = SLOT_PROB
-    _fill_slot(panel, sy, SLOT_PROB[1] - sy, PANEL_BG)
+    sy, sh = SLOT_PROB
+    _fill_slot(panel, sy, sh, PANEL_BG)
     _divider(panel, sy)
     _title(panel, "PROBABILITY", sy)
 
@@ -277,26 +277,46 @@ def _draw_history(panel, history):
     _divider(panel, sy)
     _title(panel, "HISTORY", sy)
 
-    row_h = (sh - 18) // HISTORY_ROWS
+    title_h   = 16                          # pixels used by title
+    available = sh - title_h                # pixels available for rows
+    row_h     = available // HISTORY_ROWS   # e.g. (90-16)//4 = 18
+
     entries = list(history)[-HISTORY_ROWS:]
-    # Pad to always fill HISTORY_ROWS rows
+    # Pad from top with None so most-recent entries are at the bottom
     while len(entries) < HISTORY_ROWS:
         entries.insert(0, None)
 
     for row_idx, entry in enumerate(entries):
-        ry = sy + 18 + row_idx * row_h
+        row_top = sy + title_h + row_idx * row_h
+
         if entry is None:
-            continue  # leave empty rows blank — cleaner than near-invisible dashes
+            # Subtle empty-row divider
+            cv2.line(panel, (14, row_top + row_h - 1),
+                     (PANEL_WIDTH - 14, row_top + row_h - 1),
+                     (45, 45, 45), 1)
+            continue
+
         timestamp, decision = entry
-        color = COLORS.get(decision, (180, 180, 180))
+        decision_color = COLORS.get(decision, (180, 180, 180))
         time_str = timestamp.strftime("%H:%M:%S")
+
+        # Row highlight so entry stands out from the section background
+        cv2.rectangle(panel,
+                      (8, row_top + 2),
+                      (PANEL_WIDTH - 8, row_top + row_h - 2),
+                      (48, 48, 48), -1)
+
+        text_y = row_top + row_h - 5
+
+        # Timestamp
         cv2.putText(panel, time_str,
-                    (14, ry + row_h - 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, DIM_TEXT_COLOR, 1,
+                    (14, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.38, (155, 155, 155), 1,
                     cv2.LINE_AA)
+        # Decision label
         cv2.putText(panel, decision,
-                    (90, ry + row_h - 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1,
+                    (92, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.40, decision_color, 1,
                     cv2.LINE_AA)
 
 

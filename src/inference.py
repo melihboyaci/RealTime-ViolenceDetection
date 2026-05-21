@@ -351,8 +351,9 @@ def run_inference(source=0, threshold=DECISION_THRESHOLD, save_dir=None, display
             else:
                 decision = "NonViolence"
 
-        # ── Log decision for panel history ────────────────────
-        decision_history_log.append((datetime.now(), decision))
+        # ── Log decision for panel history (only on change) ───
+        if not decision_history_log or decision_history_log[-1][1] != decision:
+            decision_history_log.append((datetime.now(), decision))
 
         if display:
             # ── Visualize ─────────────────────────────────────
