@@ -125,3 +125,12 @@
 - **Files Affected:** `src/inference_engine.py`, `src/ui_app.py`, `src/inference.py`, `requirements.txt`, `README.md`, `docs/state.md`, `docs/project-plan.md`, `docs/project_log.md`
 - **Details/Decisions:** Added a thread-safe `InferenceEngine` that preserves the online inference pipeline while exposing state to a modern dark CustomTkinter dashboard. The GUI includes live video, decision label, probability bar, live threshold slider, buffer/FPS/pose counters, dual-person pose quality canvases, scrollable history, model info, and keyboard shortcuts. Existing OpenCV CLI mode remains available; `--gui` enables the new interface.
 - **Issues & Resolutions:** OpenCV-only panel was visually limited and layout could shift under dynamic history/pose states. Resolved by moving GUI presentation to real widgets in CustomTkinter while keeping OpenCV inference as fallback.
+
+---
+
+### [2026-05-22 12:49:56] — Antigravity / CLI Execution
+
+- **Action/Task:** Exported the finalized project report and visuals to the project repository.
+- **Files Affected:** `docs/rapor.md`, `docs/images/*.png`, `docs/project-plan.md`
+- **Details/Decisions:** Copied proje_raporu.md to docs/rapor.md and created docs/images/ directory to store generated charts. Updated report to use relative image paths.
+- **Issues & Resolutions:** None

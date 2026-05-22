@@ -102,6 +102,7 @@ flowchart LR
 - [x] **P8.4** Full documentation sync — _done (2026-05-19)_
 - [x] **P9** Professional OpenCV info panel — _done (side-by-side camera + dark info panel with decision, probability, pose diagram, history, legend, model info, keys)_
 - [x] **P10** CustomTkinter GUI panel — _done (modern dark UI, live threshold slider, dual pose quality canvas, scrollable history)_
+- [x] **P11** Export project report — _done (proje_raporu.md copied to docs with relative images)_
 
 ## 7. "Do Not Start Before" Notes
 
