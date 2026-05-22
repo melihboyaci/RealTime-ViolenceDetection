@@ -1,4 +1,5 @@
 # 🎓 Gerçek Zamanlı İskelet Tabanlı Şiddet Tespiti
+
 ## Proje Raporu — Görüntü İşleme Dersi
 
 **Üniversite:** Pamukkale Üniversitesi  
@@ -21,6 +22,7 @@
 9. [Geliştirme Süreci — Yaşananlar](#9-geliştirme-süreci--yaşananlar)
 10. [Kısıtlamalar ve Gelecek Çalışmalar](#10-kısıtlamalar-ve-gelecek-çalışmalar)
 11. [Sonuç](#11-sonuç)
+12. [Kaynakça](#12-kaynakça)
 
 ---
 
@@ -32,9 +34,9 @@ Bu proje, canlı kamera veya video akışından insan iskeletlerini çıkararak 
 
 Klasik piksel tabanlı şiddet tespiti yerine iskelet tabanlı bir yaklaşımın seçilmesinin iki temel gerekçesi vardır:
 
-| Gerekçe | Açıklama |
-|---------|----------|
-| **Gizlilik** | Model kişinin yüzünü veya kıyafetini değil, yalnızca hareket geometrisini görür |
+| Gerekçe       | Açıklama                                                                          |
+| ------------- | --------------------------------------------------------------------------------- |
+| **Gizlilik**  | Model kişinin yüzünü veya kıyafetini değil, yalnızca hareket geometrisini görür   |
 | **Sağlamlık** | Işık değişimi, arka plan karmaşıklığı ve renk farklılıkları modele daha az yansır |
 
 ### Sistem Gereksinimleri
@@ -90,7 +92,7 @@ Sistem iki temel faza ayrılmıştır. Bu ayrım bilinçli ve kritik bir tasarı
 │       p ≥ 0.45  → 🔴 Violence                               │
 │  → Zamansal Yumuşatma (3-pencere çoğunluk oyu)              │
 │  → Giriş Baskılama (yeni kişide 30f ısınma)                 │
-│  → OpenCV/CustomTkinter Görüntü Katmanı                     │
+│  → OpenCV Görüntü Katmanı                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -102,10 +104,10 @@ Sistem iki temel faza ayrılmıştır. Bu ayrım bilinçli ve kritik bir tasarı
 
 Proje iki veri setinin harmanlanmasıyla oluşturulan bir eğitim kümesi kullanmaktadır.
 
-| Veri Seti | Video Sayısı | Kullanım |
-|-----------|-------------|---------|
-| **RLVS** (Real Life Violence Situations) | 2000 | Train + Val + Test |
-| **RWF-2000** | 2000 | Train + Val (test dahil değil) |
+| Veri Seti                                | Video Sayısı | Kullanım                       |
+| ---------------------------------------- | ------------ | ------------------------------ |
+| **RLVS** (Real Life Violence Situations) | 2000         | Train + Val + Test             |
+| **RWF-2000**                             | 2000         | Train + Val (test dahil değil) |
 
 > [!IMPORTANT]
 > Test seti yalnızca RLVS kaynaklıdır. Bu sayede RWF-2000 eklenmeden önceki baseline ile doğrudan karşılaştırma yapılabilmektedir.
@@ -114,11 +116,11 @@ Proje iki veri setinin harmanlanmasıyla oluşturulan bir eğitim kümesi kullan
 
 ![Dataset Distribution](images/dataset_distribution.png)
 
-| Split | Toplam Dizi | Violence | NonViolence | Kaynak |
-|-------|-------------|---------|------------|--------|
-| **Train** | 6,423 | 3,227 | 3,196 | RLVS + RWF-2000 |
-| **Val** | 1,435 | 683 | 752 | RLVS + RWF-2000 |
-| **Test** | 740 | 277 | 463 | Yalnızca RLVS |
+| Split     | Toplam Dizi | Violence | NonViolence | Kaynak          |
+| --------- | ----------- | -------- | ----------- | --------------- |
+| **Train** | 6,423       | 3,227    | 3,196       | RLVS + RWF-2000 |
+| **Val**   | 1,435       | 683      | 752         | RLVS + RWF-2000 |
+| **Test**  | 740         | 277      | 463         | Yalnızca RLVS   |
 
 **Sınıf Dengeleme:** Motion filter, Violence pencerelerinin bir kısmını elediğinden oluşan dengesizliği gidermek için train setinde NonViolence altörnekleme uygulanmıştır.
 
@@ -155,10 +157,11 @@ Toplam:                                         69 boyut
 ```
 
 **Normalizasyon:** Her kişi için:
+
 1. **Hip Centering** — kalça orta noktası orijine taşınır (pozisyon bağımsızlığı)
 2. **Shoulder-Hip Scaling** — torso uzunluğuna bölünür (ölçek bağımsızlığı)
 
-**Kayan Pencere:** 30-frame pencere, stride=15 ile kaydırılır → ~3 saniyelik hareket dizisi.
+**Kayan Pencere:** 30-frame pencere, stride=15 ile kaydırılır → ~3 saniyelik hareket dizisi. Eğitimde stride=15 kullanılırken online inference'da her yeni frame GRU'yu tetikler (stride=1); bu sayede gerçek zamanlı karar gecikmesi minimize edilir.
 
 **Motion Filter:** Violence pencerelerine, ortalama normalize keypoint L2 deplasmanı θ=0.05 altında olanlar eğitimden çıkarılır. Bu, video düzeyindeki etiket gürültüsünü (şiddet videosunun sakin başlangıç/bitiş kısımları) azaltır.
 
@@ -168,13 +171,13 @@ Toplam:                                         69 boyut
 
 ### 4.1 Neden GRU?
 
-| Mimari | Temporal Hafıza | Parametre | Eğitim Hızı | Seçim |
-|--------|----------------|-----------|-------------|-------|
-| Vanilla RNN | Var (zayıf) | Az | Hızlı | ✗ — vanishing gradient |
-| LSTM | Var (güçlü) | Fazla | Yavaş | ✗ — gereksiz karmaşıklık |
-| **GRU** | **Var (güçlü)** | **Orta** | **Hızlı** | **✓ Seçilen** |
-| Transformer | Var (global) | Çok fazla | Çok yavaş | ✗ — 10K dizi için overkill |
-| 3D CNN | Var (lokal) | Fazla | Yavaş | ✗ — ham piksel gerektirir |
+| Mimari      | Temporal Hafıza | Parametre | Eğitim Hızı | Seçim                      |
+| ----------- | --------------- | --------- | ----------- | -------------------------- |
+| Vanilla RNN | Var (zayıf)     | Az        | Hızlı       | ✗ — vanishing gradient     |
+| LSTM        | Var (güçlü)     | Fazla     | Yavaş       | ✗ — gereksiz karmaşıklık   |
+| **GRU**     | **Var (güçlü)** | **Orta**  | **Hızlı**   | **✓ Seçilen**              |
+| Transformer | Var (global)    | Çok fazla | Çok yavaş   | ✗ — 10K dizi için overkill |
+| 3D CNN      | Var (lokal)     | Fazla     | Yavaş       | ✗ — ham piksel gerektirir  |
 
 GRU, LSTM'in sadeleştirilmiş versiyonudur. 4 kapı (LSTM) yerine 2 kapı (Update Gate + Reset Gate) kullanır, parametre sayısı LSTM'in yaklaşık %75'idir. Bu veri boyutunda (~10K dizi) GRU genellikle LSTM ile eşdeğer performans gösterir.
 
@@ -200,16 +203,16 @@ Output     Linear(32→1) + Sigmoid  →  P(Violence) ∈ [0,1]
 
 ### 4.3 Eğitim Konfigürasyonu
 
-| Parametre | Değer | Gerekçe |
-|-----------|-------|---------|
-| Loss | BCELoss | İkili sınıflandırma için matematiksel doğru seçim |
-| Optimizer | Adam (lr=1e-3) | Adaptif lr, recurrent mimarilerde kararlı |
-| Weight Decay | 1e-4 | L2 regularizasyon, overfitting'e karşı |
-| Scheduler | ReduceLROnPlateau (p=5, f=0.5) | Loss platoya ulaşınca lr yarıya iner |
-| Max Epoch | 100 | Early stopping zaten keser |
-| Batch Size | 32 | GPU belleği ve gradient gürültüsü dengesi |
-| Early Stop | val_loss, patience=10 | En düşük val_loss → best model |
-| Gradient Clip | max_norm=1.0 | GRU exploding gradient koruması |
+| Parametre     | Değer                          | Gerekçe                                           |
+| ------------- | ------------------------------ | ------------------------------------------------- |
+| Loss          | BCELoss                        | İkili sınıflandırma için matematiksel doğru seçim |
+| Optimizer     | Adam (lr=1e-3)                 | Adaptif lr, recurrent mimarilerde kararlı         |
+| Weight Decay  | 1e-4                           | L2 regularizasyon, overfitting'e karşı            |
+| Scheduler     | ReduceLROnPlateau (p=5, f=0.5) | Loss platoya ulaşınca lr yarıya iner              |
+| Max Epoch     | 100                            | Early stopping zaten keser                        |
+| Batch Size    | 32                             | GPU belleği ve gradient gürültüsü dengesi         |
+| Early Stop    | val_loss, patience=10          | En düşük val_loss → best model                    |
+| Gradient Clip | max_norm=1.0                   | GRU exploding gradient koruması                   |
 
 ---
 
@@ -227,6 +230,7 @@ Output     Linear(32→1) + Sigmoid  →  P(Violence) ∈ [0,1]
 ![Training Curves](images/training_curves.png)
 
 **Gözlemler:**
+
 - Eğitim 15 epoch'ta tamamlandı (Early stopping patience=10 ile tetiklendi)
 - En iyi val_loss → **Epoch 5** (val_loss=0.541)
 - Epoch 5'ten sonra val_loss artarken train_loss düşmeye devam etti → **Overfitting başladı**
@@ -234,11 +238,25 @@ Output     Linear(32→1) + Sigmoid  →  P(Violence) ∈ [0,1]
 - Validasyon accuracy'si en yüksek **~74.6%**'ya ulaştı
 
 > [!NOTE]
-> Bu log, blended (RLVS+RWF-2000) model öncesi eğitime aittir. Final blended model 17 epoch'ta tamamlanmış, **test F1=0.820, AUC=0.927** elde edilmiştir.
+> Bu log, blended (RLVS+RWF-2000) model öncesi eğitime aittir. Final model detayları için §5.3'e bakın.
 
-### 5.3 Data Augmentation Denemesi (Başarısız)
+### 5.3 Final Blended Model Eğitimi
+
+RLVS ve RWF-2000 veri setlerinin harmanlanmasıyla yeniden eğitilen final model:
+
+| Parametre           | Değer                           |
+| ------------------- | ------------------------------- |
+| **Toplam Epoch**    | 17                              |
+| **En İyi Epoch**    | 7 (early stopping patience=10)  |
+| **En İyi val_loss** | 0.5314                          |
+| **Donanım**         | RTX 4060 Laptop GPU (CUDA 12.6) |
+| **Test F1**         | 0.820 @ t=0.45                  |
+| **Test AUC-ROC**    | 0.927                           |
+
+### 5.4 Data Augmentation Denemesi (Başarısız)
 
 İlk model eğitiminde F1 iyileştirmek amacıyla 4 katlı veri artırma denenmiştir:
+
 - Gaussian gürültü ekleme
 - Zamansal kaydırma
 - Dizi ters çevirme
@@ -255,22 +273,22 @@ Output     Linear(32→1) + Sigmoid  →  P(Violence) ∈ [0,1]
 
 **Test Seti:** 740 dizi (277 Violence, 463 NonViolence) — RLVS only, threshold=0.45
 
-| | Tahmin: Violence | Tahmin: NonViolence |
-|--|--|--|
-| **Gerçek: Violence** | TP = 255 | FN = 22 |
-| **Gerçek: NonViolence** | FP = 93 | TN = 370 |
+|                         | Tahmin: Violence | Tahmin: NonViolence |
+| ----------------------- | ---------------- | ------------------- |
+| **Gerçek: Violence**    | TP = 255         | FN = 22             |
+| **Gerçek: NonViolence** | FP = 93          | TN = 370            |
 
 ### 6.2 Performans Metrikleri
 
 ![Metrics Radar](images/metrics_radar.png)
 
-| Metrik | Değer | Yorum |
-|--------|-------|-------|
-| **Precision** | **0.775** | 100 alarm'dan 77'si gerçek |
-| **Recall** | **0.870** | Gerçek vakaların %87'si yakalandı |
-| **F1** | **0.820** | Precision ve Recall dengesi |
-| **AUC-ROC** | **0.927** | Eşik bağımsız ayırt edicilik — çok güçlü |
-| **Accuracy** | **85.7%** | Genel doğruluk |
+| Metrik        | Değer     | Yorum                                    |
+| ------------- | --------- | ---------------------------------------- |
+| **Precision** | **0.775** | 100 alarm'dan 77'si gerçek               |
+| **Recall**    | **0.870** | Gerçek vakaların %87'si yakalandı        |
+| **F1**        | **0.820** | Precision ve Recall dengesi              |
+| **AUC-ROC**   | **0.927** | Eşik bağımsız ayırt edicilik — çok güçlü |
+| **Accuracy**  | **85.7%** | Genel doğruluk                           |
 
 > [!TIP]
 > Gözetleme uygulamalarında Accuracy tek başına yanıltıcı olabilir. AUC-ROC=0.927 değeri, modelin Violence ve NonViolence dağılımlarını çok iyi ayırt ettiğini göstermektedir.
@@ -284,6 +302,7 @@ Output     Linear(32→1) + Sigmoid  →  P(Violence) ∈ [0,1]
 - Blended modelde yeniden ayarlanan eşik: **t=0.45** — F1=0.820 (**dağıtılan değer**)
 
 **Üç-Bölgeli Karar Sistemi:**
+
 - `p < 0.35` → 🟢 **NonViolence** (güvenli)
 - `0.35 ≤ p < 0.45` → 🟡 **Suspicious** (erken uyarı)
 - `p ≥ 0.45` → 🔴 **Violence** (alert)
@@ -298,53 +317,53 @@ Toplam **4 ana ablasyon kategorisi** gerçekleştirilmiştir. Her ablasyon, yaln
 
 ### 7.1 Threshold Ablasyonu (P7.1)
 
-| Eşik | Precision | Recall | F1 | Karar |
-|------|-----------|--------|----|-------|
-| 0.30 | 0.680 | 0.985 | 0.806 | Çok fazla FP |
-| 0.40 | 0.744 | 0.931 | 0.827 | RLVS-only için dağıtıldı |
+| Eşik     | Precision | Recall    | F1        | Karar                              |
+| -------- | --------- | --------- | --------- | ---------------------------------- |
+| 0.30     | 0.680     | 0.985     | 0.806     | Çok fazla FP                       |
+| 0.40     | 0.744     | 0.931     | 0.827     | RLVS-only için dağıtıldı           |
 | **0.45** | **0.775** | **0.870** | **0.820** | **Blended model için dağıtıldı ★** |
-| 0.70 | 0.867 | 0.542 | 0.667 | Başlangıç değeri — çok muhafazakâr |
+| 0.70     | 0.867     | 0.542     | 0.667     | Başlangıç değeri — çok muhafazakâr |
 
 **Bulgu:** Kaynak PDF'deki başlangıç eşiği 0.7, düşük Recall (54%) nedeniyle gerçek kullanım için uygun değildir. Val setinde ayarlama yapıldığında 0.45 en iyi F1'i vermektedir.
 
 ### 7.2 İnteraksiyon Özelliği Ablasyonu (P7.2)
 
-| Konfigürasyon | F1 | AUC-ROC | ΔF1 |
-|---------------|-----|---------|-----|
+| Konfigürasyon                  | F1        | AUC-ROC   | ΔF1      |
+| ------------------------------ | --------- | --------- | -------- |
 | **69-dim (interaction dahil)** | **0.820** | **0.927** | baseline |
-| 68-dim (interaction çıkarıldı) | 0.825 | 0.931 | +0.005 |
+| 68-dim (interaction çıkarıldı) | 0.825     | 0.931     | +0.005   |
 
 **Bulgu:** İnteraksiyon özelliği olmadan model marjinal olarak daha iyi F1 (+0.005) gösteriyor. Ancak fark istatistiksel olarak anlamlı değil ve özellik tasarım kararı kilitli (D13) — 69-dim korundu.
 
 ### 7.3 Normalizasyon Ablasyonu (P7.3)
 
-| Konfigürasyon | F1 | AUC-ROC | ΔF1 |
-|---------------|-----|---------|-----|
+| Konfigürasyon            | F1        | AUC-ROC   | ΔF1      |
+| ------------------------ | --------- | --------- | -------- |
 | **Tam norm (hip+scale)** | **0.820** | **0.927** | baseline |
-| Normalizasyon yok | 0.827 | 0.938 | +0.007 |
-| Yalnızca hip centering | 0.823 | 0.937 | +0.003 |
-| Yalnızca ölçekleme | 0.819 | 0.925 | -0.001 |
+| Normalizasyon yok        | 0.827     | 0.938     | +0.007   |
+| Yalnızca hip centering   | 0.823     | 0.937     | +0.003   |
+| Yalnızca ölçekleme       | 0.819     | 0.925     | -0.001   |
 
 **Bulgu:** Tüm varyantlar ±1% F1 aralığında. Normalizasyon, Precision/Recall dengesinde en iyi sonucu veriyor. Tam normalizasyon korundu.
 
 ### 7.4 Motion Filter Ablasyonu (P7.4)
 
-| θ Değeri | F1 | AUC-ROC | ΔF1 | Dizi Sayısı |
-|----------|-----|---------|-----|------------|
-| θ=0.00 (filtre kapalı) | 0.831 | 0.923 | +0.011 | 6,493 |
-| θ=0.025 | 0.819 | 0.919 | -0.001 | 6,428 |
-| **θ=0.05 (baseline)** | **0.820** | **0.927** | baseline | **6,423** |
-| θ=0.075 | 0.798 | 0.923 | -0.022 | 6,421 |
-| θ=0.10 | 0.830 | 0.931 | +0.010 | 6,420 |
+| θ Değeri               | F1        | AUC-ROC   | ΔF1      | Dizi Sayısı |
+| ---------------------- | --------- | --------- | -------- | ----------- |
+| θ=0.00 (filtre kapalı) | 0.831     | 0.923     | +0.011   | 6,493       |
+| θ=0.025                | 0.819     | 0.919     | -0.001   | 6,428       |
+| **θ=0.05 (baseline)**  | **0.820** | **0.927** | baseline | **6,423**   |
+| θ=0.075                | 0.798     | 0.923     | -0.022   | 6,421       |
+| θ=0.10                 | 0.830     | 0.931     | +0.010   | 6,420       |
 
 **Bulgu:** Motion filter'ın etkisi marjinaldir. θ=0.05 dengeli bir değerdir, korundu.
 
 ### 7.5 RWF-2000 Veri Seti Harmanlaması (P8)
 
-| Model | Eğitim Verisi | F1 | AUC-ROC | Threshold |
-|-------|--------------|-----|---------|-----------|
-| Baseline | RLVS 3,283 dizi | 0.827 | 0.921 | 0.40 |
-| **Blended** | **RLVS+RWF 6,423 dizi** | **0.820** | **0.927** | **0.45** |
+| Model       | Eğitim Verisi           | F1        | AUC-ROC   | Threshold |
+| ----------- | ----------------------- | --------- | --------- | --------- |
+| Baseline    | RLVS 3,283 dizi         | 0.827     | 0.921     | 0.40      |
+| **Blended** | **RLVS+RWF 6,423 dizi** | **0.820** | **0.927** | **0.45**  |
 
 **Bulgu:** Blended model F1'de 0.7 puan kayıpla AUC-ROC'da +0.6 puan kazanmaktadır. AUC-ROC iyileşmesi, modelin eşik bağımsız ayırt ediciliğinin arttığına işaret etmektedir. Blended model dağıtımda tercih edildi.
 
@@ -359,10 +378,10 @@ Canlı kullanımda aşağıdaki adımlar gerçek zamanlı olarak çalışır:
 1. **Frame Ön İşleme** — offline ile aynı pipeline (CLAHE → Blur → Resize → RGB)
 2. **Pose Kalite Kapısı** — Yeni kararlar:
    - En az **6 geçerli keypoint** (conf ≥ 0.5)
-   - En az **2 torso keypointi** 
+   - En az **2 torso keypointi**
    - Bbox alan oranı ≥ **0.02**
    - Bu koşulları sağlamayan frameler: buffer temizlenir, `No Valid Pose` gösterilir
-3. **FIFO Buffer** — 30 frame'lik halka tamponu
+3. **FIFO Buffer** — 30 frame'lik halka tamponu (inference stride=1; eğitimde stride=15 idi)
 4. **GRU Forward Pass** — Buffer dolduğunda her yeni frame'de tetiklenir
 5. **Üç-Bölgeli Karar** — Sigmoid olasılığına göre NonViolence/Suspicious/Violence
 6. **Zamansal Yumuşatma** — Son 3 kararın çoğunluk oyu (tek-frame gürültüsünü bastırır)
@@ -379,22 +398,14 @@ Webcam testi sırasında kullanıcı, kameraya yalnızca yüzünü gösterdiğin
 
 ### 8.3 Kullanıcı Arayüzü
 
-İki arayüz modu mevcuttur:
+**OpenCV bilgi paneli:**
 
-**OpenCV Modu (varsayılan):**
 - Kamera görüntüsü + 320px karanlık kenar panel
 - Karar renk kodu (kırmızı/sarı/yeşil)
 - Olasılık çubuğu ve eşik işareti
 - Buffer/FPS/pose durumu
 - Basitleştirilmiş çubuk-figür skeleton diyagramı
 - Son 10 kararın zaman damgalı geçmişi
-
-**CustomTkinter GUI Modu (`--gui` bayrağı):**
-- Modern dark tema widget'ları
-- Canlı video + karar etiketi + olasılık çubuğu
-- Canlı eşik kaydırıcısı
-- İkili kişi pose kalitesi canvas'ı
-- Kaydırılabilir karar geçmişi
 
 ---
 
@@ -405,29 +416,34 @@ Proje sıfırdan tamamlanmıştır. İşte geliştirme adımlarının hikayesi:
 ### 9.1 P0–P2 — Bootstrap ve Kaggle Notebook
 
 **P0 — Proje İskeleti:**
+
 - Repository yapısı, `configs/config.py`, `requirements.txt`, virtual environment
 - Tüm kilitli sabitler `decision_log.md`'den config'e işlendi
 - PyTorch 2.12.0 (CPU) + OpenCV 4.13.0 + Ultralytics 8.4.51
 
 **P1+P2 — Kaggle Notebook:**
+
 - 14 hücreli tam pipeline notebook oluşturuldu
 - **Sorun yaşandı:** Kaggle, nbformat 4.5 ile cell `id` alanlarını okuyamıyordu
 - **Çözüm:** nbformat_minor=4'e düşürüldü, tüm `id` alanları silindi
 - **Başka sorun:** Kaggle GPU erişimi için telefon doğrulaması gerekiyordu → tamamlandı
 
 **P3+P4+P5+P6 — Local Kod Tabanı:**
+
 - `ViolenceGRU` modeli, eğitim, değerlendirme ve inference scriptleri
 - Smoke test başarılı: `(32,30,69)→(32,1)` şekil kontrolü
 
 ### 9.2 P4–P5 — İlk Model Eğitimi ve Ablasyon
 
 **P4 — İlk Model Eğitimi:**
+
 - Epoch 8'de en iyi val_loss=0.4837
 - 18. epoch'ta early stopping tetiklendi
 - Val accuracy ~79.9% — umut verici!
 - **Sorun:** Epoch 9'dan itibaren overfitting gözlemlendi
 
 **P5 — Değerlendirme + P7.1 Threshold Ablasyonu:**
+
 - Test F1=0.827 @ t=0.40 (val-tuned)
 - 4× veri artırma denendi → BAŞARISIZ (daha hızlı overfitting, F1 artışı yok)
 - **Karar:** Orijinal 3283 diziye geri dönüldü
@@ -435,51 +451,51 @@ Proje sıfırdan tamamlanmıştır. İşte geliştirme adımlarının hikayesi:
 ### 9.3 P8 — RWF-2000 Harmanlaması
 
 **P8.1 — Kaggle Notebook Güncelleme:**
+
 - `BLEND_RWF=True` bayrağı, Fight→Violence/NonFight→NonViolence etiket dönüşümü
 - **Sorun:** RWF-2000 Kaggle path'i yanlıştı → düzeltildi
 - Sonuç: train %96 artış (3283→6423 dizi)
 
 **P8.2 — GPU Ortamı ve Blended Model Eğitimi:**
+
 - RTX 4060 için CUDA 12.6 kuruldu
 - **Sorun:** Globalde CPU-only PyTorch vardı → kaldırıldı, venv'e CUDA sürümü kuruldu
 - Blended model: 17 epoch, F1=0.820, AUC=0.927 @ t=0.45
 
 **P7.2 — Interaction Feature Ablasyonu + Dokümantasyon Senkronizasyonu:**
+
 - 68-dim model → F1=0.825 (+0.005 vs baseline) — fark önemsiz
 - 69-dim korundu (D13 kararı kilitli)
 - 8+ TBD state.md'de çözümlendi
 - D21-D26 kararları decision_log.md'ye eklendi
 
-### 9.4 P9–P10 — Canlı Test ve Panel Geliştirme
+### 9.4 P9 — Canlı Test ve OpenCV Panel Geliştirme
 
 **Webcam Testi:**
+
 - Sistem canlı webcam ile başarıyla çalıştı
 - **Kritik Sorun Keşfedildi:** Kameraya yalnızca yüz gösterildiğinde sistem Violence kararı veriyordu!
 - **Analiz:** Kısmi baş/profil pozu, geçersiz iskelet geometrisi üretiyordu
 - **Çözüm (D26):** Online pose kalite kapısı eklendi (6 keypoint + 2 torso + bbox≥0.02)
 
 **P9 — OpenCV Info Panel:**
+
 - Saf OpenCV + numpy ile profesyonel kenar panel oluşturuldu
 - Karar rengi, olasılık çubuğu, skeleton diyagramı, karar geçmişi
 - Harici bağımlılık eklenmedi
-
-**P10 — CustomTkinter GUI:**
-- Thread-safe `InferenceEngine` sınıfı yazıldı
-- Modern dark tema dashboard: canlı video, karar etiketi, eşik kaydırıcısı, çift kişi pose canvas
-- `--gui` bayrağıyla etkinleştiriliyor, OpenCV modu varsayılan olarak korundu
 
 ---
 
 ## 10. Kısıtlamalar ve Gelecek Çalışmalar
 
-| # | Kısıtlama | Etki | Gelecek Çözüm |
-|---|-----------|------|---------------|
-| **L1** | **İki kişi üst sınırı** | Kalabalık sahnelerde bilgi kaybı | Değişken boyutlu vektör veya 3+ kişi desteği |
-| **L2** | **X-eksenine göre sıralama kararsızlığı** | Kişiler çakıştığında kimlik değişimi | ByteTrack veya IoU tracker |
-| **L3** | **Video düzeyinde etiket gürültüsü** | Mislabeled pencereler eğitimi bozar | Pencere düzeyinde etiketleme |
-| **L4** | **Yalnızca iskelet temsili** | Silah, kan, nesne görünmez | Piksel dalı füzyonu |
-| **L5** | **Sabit 30-frame pencere** | 3 saniye altı olaylar seyreltilir | Değişken uzunluk desteği |
-| **L6** | **Domain shift** | YouTube→güvenlik kamerası farkı | Çok kaynaklı veri, domain adaptation |
+| #      | Kısıtlama                                 | Etki                                 | Gelecek Çözüm                                |
+| ------ | ----------------------------------------- | ------------------------------------ | -------------------------------------------- |
+| **L1** | **İki kişi üst sınırı**                   | Kalabalık sahnelerde bilgi kaybı     | Değişken boyutlu vektör veya 3+ kişi desteği |
+| **L2** | **X-eksenine göre sıralama kararsızlığı** | Kişiler çakıştığında kimlik değişimi | ByteTrack veya IoU tracker                   |
+| **L3** | **Video düzeyinde etiket gürültüsü**      | Mislabeled pencereler eğitimi bozar  | Pencere düzeyinde etiketleme                 |
+| **L4** | **Yalnızca iskelet temsili**              | Silah, kan, nesne görünmez           | Piksel dalı füzyonu                          |
+| **L5** | **Sabit 30-frame pencere**                | 3 saniye altı olaylar seyreltilir    | Değişken uzunluk desteği                     |
+| **L6** | **Domain shift**                          | YouTube→güvenlik kamerası farkı      | Çok kaynaklı veri, domain adaptation         |
 
 ---
 
@@ -489,13 +505,13 @@ Bu proje, görüntü işlemenin temel tekniklerini (CLAHE, Gaussian blur, renk u
 
 ### Temel Başarılar
 
-| Alan | Sonuç |
-|------|-------|
-| **AUC-ROC** | **0.927** — mükemmel ayırt edicilik |
-| **F1** | **0.820** — dengeli Precision/Recall |
-| **Model Boyutu** | **115,777 parametre** — CPU'da gerçek zamanlı |
-| **Gerçek Zamanlı** | ~5-10 FPS (CPU), GPU ile daha hızlı |
-| **Gizlilik** | Piksel değil iskelet — gizlilik dostu |
+| Alan               | Sonuç                                         |
+| ------------------ | --------------------------------------------- |
+| **AUC-ROC**        | **0.927** — mükemmel ayırt edicilik           |
+| **F1**             | **0.820** — dengeli Precision/Recall          |
+| **Model Boyutu**   | **115,777 parametre** — CPU'da gerçek zamanlı |
+| **Gerçek Zamanlı** | ~5-10 FPS (CPU), GPU ile daha hızlı           |
+| **Gizlilik**       | Piksel değil iskelet — gizlilik dostu         |
 
 ### Öğrenilen Dersler
 
@@ -520,5 +536,21 @@ Bu proje derste öğrenilen birçok temel konunun gerçek bir problem üzerinde 
 
 ---
 
-*Rapor oluşturulma tarihi: 22 Mayıs 2026*  
-*Tüm sonuçlar `data/sequences/test/` dizinindeki RLVS-only test seti üzerinden hesaplanmıştır.*
+_Rapor oluşturulma tarihi: 22 Mayıs 2026_  
+_Tüm sonuçlar `data/sequences/test/` dizinindeki RLVS-only test seti üzerinden hesaplanmıştır._
+
+---
+
+## 12. Kaynakça
+
+1. **RLVS Veri Seti:** Soliman, M. M., Kamal, M. H., Nashed, M. A. E., Mostafa, Y., Chawky, B. S., & Khattab, D. (2019). _Violence Recognition from Videos using Deep Learning Techniques._ 9th International Conference on Intelligent Computing and Information Systems (ICICIS), Cairo.
+
+2. **RWF-2000 Veri Seti:** Cheng, M., Cai, K., & Li, M. (2021). _RWF-2000: An Open Large Scale Video Database for Violence Detection._ 25th International Conference on Pattern Recognition (ICPR).
+
+3. **YOLOv8 / Ultralytics:** Jocher, G., Chaurasia, A., & Qiu, J. (2023). _Ultralytics YOLO_ (Version 8.0.0). https://github.com/ultralytics/ultralytics
+
+4. **GRU:** Cho, K., Van Merriënboer, B., Gulcehre, C., Bahdanau, D., Bougares, F., Schwenk, H., & Bengio, Y. (2014). _Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation._ EMNLP 2014.
+
+5. **CLAHE:** Zuiderveld, K. (1994). _Contrast Limited Adaptive Histogram Equalization._ Graphics Gems IV. Academic Press.
+
+6. **OpenCV:** Bradski, G. (2000). _The OpenCV Library._ Dr. Dobb's Journal of Software Tools.
