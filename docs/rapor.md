@@ -4,8 +4,12 @@
 
 **Üniversite:** Pamukkale Üniversitesi  
 **Bölüm:** Bilgisayar Mühendisliği  
-**Ders:** Görüntü İşleme  
+**Ders:** EEEN 439 - Görüntü İşlemenin Temelleri   
 **Tarih:** Mayıs 2026
+
+**Öğrenciler:**  
+Melih Boyacı — 22253073  
+Ali Eren Oğuztaş — 22253065
 
 ---
 
