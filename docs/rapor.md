@@ -231,14 +231,11 @@ Output     Linear(32→1) + Sigmoid  →  P(Violence) ∈ [0,1]
 
 **Gözlemler:**
 
-- Eğitim 15 epoch'ta tamamlandı (Early stopping patience=10 ile tetiklendi)
-- En iyi val_loss → **Epoch 5** (val_loss=0.541)
-- Epoch 5'ten sonra val_loss artarken train_loss düşmeye devam etti → **Overfitting başladı**
-- LR, Epoch 12'de 1e-3'ten 5e-4'e indi (ReduceLROnPlateau devreye girdi)
-- Validasyon accuracy'si en yüksek **~74.6%**'ya ulaştı
-
-> [!NOTE]
-> Bu log, blended (RLVS+RWF-2000) model öncesi eğitime aittir. Final model detayları için §5.3'e bakın.
+- Eğitim 17 epoch'ta tamamlandı (Early stopping patience=10 ile tetiklendi)
+- En iyi val_loss → **Epoch 7** (val_loss=0.5314)
+- Epoch 7'den sonra val_loss artarken train_loss düşmeye devam etti → **Overfitting başladı**
+- LR, Epoch 14'te 1e-3'ten 5e-4'e indi (ReduceLROnPlateau patience=5 devreye girdi)
+- Validasyon accuracy'si en yüksek **~76%**'ya ulaştı (Epoch 11)
 
 ### 5.3 Final Blended Model Eğitimi
 
