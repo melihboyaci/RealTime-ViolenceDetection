@@ -1,4 +1,4 @@
-# 🎓 Gerçek Zamanlı İskelet Tabanlı Şiddet Tespiti
+# Gerçek Zamanlı İskelet Tabanlı Şiddet Tespiti
 
 ## Proje Raporu — Görüntü İşleme Dersi
 
@@ -9,7 +9,7 @@
 
 ---
 
-## 📋 İçindekiler
+## İçindekiler
 
 1. [Projenin Amacı ve Motivasyon](#1-projenin-amacı-ve-motivasyon)
 2. [Sistem Mimarisi](#2-sistem-mimarisi)
@@ -87,9 +87,9 @@ Sistem iki temel faza ayrılmıştır. Bu ayrım bilinçli ve kritik bir tasarı
 │  → FIFO Buffer (30 frame)                                   │
 │  → GRU → Sigmoid olasılığı                                  │
 │  → Üç-Bölgeli Karar (t=0.45):                              │
-│       p < 0.35  → 🟢 NonViolence                            │
-│      0.35–0.45  → 🟡 Suspicious                             │
-│       p ≥ 0.45  → 🔴 Violence                               │
+│       p < 0.35  → NonViolence                              │
+│      0.35–0.45  → Suspicious                               │
+│       p ≥ 0.45  → Violence                                 │
 │  → Zamansal Yumuşatma (3-pencere çoğunluk oyu)              │
 │  → Giriş Baskılama (yeni kişide 30f ısınma)                 │
 │  → OpenCV Görüntü Katmanı                                   │
@@ -300,9 +300,9 @@ RLVS ve RWF-2000 veri setlerinin harmanlanmasıyla yeniden eğitilen final model
 
 **Üç-Bölgeli Karar Sistemi:**
 
-- `p < 0.35` → 🟢 **NonViolence** (güvenli)
-- `0.35 ≤ p < 0.45` → 🟡 **Suspicious** (erken uyarı)
-- `p ≥ 0.45` → 🔴 **Violence** (alert)
+- `p < 0.35` → **NonViolence** (güvenli)
+- `0.35 ≤ p < 0.45` → **Suspicious** (erken uyarı)
+- `p ≥ 0.45` → **Violence** (alert)
 
 ---
 
@@ -318,7 +318,7 @@ Toplam **4 ana ablasyon kategorisi** gerçekleştirilmiştir. Her ablasyon, yaln
 | -------- | --------- | --------- | --------- | ---------------------------------- |
 | 0.30     | 0.680     | 0.985     | 0.806     | Çok fazla FP                       |
 | 0.40     | 0.744     | 0.931     | 0.827     | RLVS-only için dağıtıldı           |
-| **0.45** | **0.775** | **0.870** | **0.820** | **Blended model için dağıtıldı ★** |
+| **0.45** | **0.775** | **0.870** | **0.820** | **Blended model için dağıtıldı**   |
 | 0.70     | 0.867     | 0.542     | 0.667     | Başlangıç değeri — çok muhafazakâr |
 
 **Bulgu:** Kaynak PDF'deki başlangıç eşiği 0.7, düşük Recall (54%) nedeniyle gerçek kullanım için uygun değildir. Val setinde ayarlama yapıldığında 0.45 en iyi F1'i vermektedir.
