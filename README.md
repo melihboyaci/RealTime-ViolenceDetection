@@ -58,24 +58,34 @@ Sistem gerçek zamanlı çalışacak şekilde tasarlanmıştır. Eğitim tarafı
 
 Offline preprocessing ile online inference bilinçli olarak ayrılmıştır. YOLO ile tüm veri setini işlemek zaman aldığı için eğitim verisi bir kez `.npy` olarak üretilir. Canlı kullanımda ise aynı kare ön işleme ve feature builder mantığı korunarak train/serve farkı oluşması engellenir.
 
-### 🖼️ OpenCV Arayüzü Ekran Görüntüleri
+### 🖼️ OpenCV Arayüzü — Sistem Çıktıları
 
-> 📷 **Ekran görüntüsü alanı 1:** Canlı kamera + iskelet çizimi  
-> Önerilen dosya: `docs/assets/opencv-live-skeleton.png`
+**🟢 NonViolence** — `p = 0.010` — İki kişi normal yürüyüş, iskelet yeşil
 
-> 📷 **Ekran görüntüsü alanı 2:** Suspicious / Violence karar paneli  
-> Önerilen dosya: `docs/assets/opencv-decision-panel.png`
+![NonViolence](docs/images/nonViolence1.png)
+
+---
+
+**🟡 Suspicious** — `p = 0.394` — Bir kişi diğerinin boğazını tutuyor, iskelet sarı (0.35–0.45 arası)
+
+![Suspicious](docs/images/suspicious1.png)
+
+---
+
+**🔴 Violence** — `p = 0.583` — Aktif kavga, iskelet kırmızı, eşik aşıldı
+
+![Violence](docs/images/violence1.png)
 
 ## 🔬 Görüntü İşleme Pipeline'ı
 
 Pipeline dört temel kare ön işleme adımıyla başlar:
 
-| Adım | İşlem | Gerekçe |
-| --- | --- | --- |
-| 1 | Conditional CLAHE | Karanlık/düşük kontrastlı karelerde yerel kontrastı artırır. |
-| 2 | GaussianBlur 3×3 | Sensör gürültüsünü azaltır; keypoint kenarlarını aşırı bozmaz. |
-| 3 | Resize 640×640 | YOLOv8n-Pose giriş boyutuyla uyumlu standart çözünürlük sağlar. |
-| 4 | BGR→RGB | OpenCV BGR, Ultralytics/PyTorch RGB beklediği için kanal sırasını düzeltir. |
+| Adım | İşlem             | Gerekçe                                                                     |
+| ---- | ----------------- | --------------------------------------------------------------------------- |
+| 1    | Conditional CLAHE | Karanlık/düşük kontrastlı karelerde yerel kontrastı artırır.                |
+| 2    | GaussianBlur 3×3  | Sensör gürültüsünü azaltır; keypoint kenarlarını aşırı bozmaz.              |
+| 3    | Resize 640×640    | YOLOv8n-Pose giriş boyutuyla uyumlu standart çözünürlük sağlar.             |
+| 4    | BGR→RGB           | OpenCV BGR, Ultralytics/PyTorch RGB beklediği için kanal sırasını düzeltir. |
 
 Bu sıra önemlidir: önce kontrast iyileştirilir, ardından gürültü azaltılır, sonra modelin beklediği boyuta ve renk düzenine geçilir. Böylece YOLOv8n-Pose daha kararlı keypoint çıkarır.
 
@@ -96,11 +106,11 @@ total = 69 dimensions
 
 Model, `(30, 69)` boyutlu sequence window girdisini alan GRU tabanlı ikili sınıflandırıcıdır. Çıkışta sigmoid aktivasyonu ile `P(Violence)` olasılığı üretilir.
 
-| Model | Avantaj | Bu proje için değerlendirme |
-| --- | --- | --- |
-| LSTM | Uzun bağımlılıkları iyi taşır | GRU’ya göre daha fazla parametre ve hesaplama maliyeti getirir. |
-| Transformer | Büyük veri ve uzun sekanslarda güçlüdür | Bu ölçekte veri ve 30 frame pencere için gereğinden ağırdır. |
-| **GRU** | Hafif, hızlı, kısa zaman serilerinde yeterli | **Seçilen modeldir; gerçek zamanlı kullanım için uygundur.** |
+| Model       | Avantaj                                      | Bu proje için değerlendirme                                     |
+| ----------- | -------------------------------------------- | --------------------------------------------------------------- |
+| LSTM        | Uzun bağımlılıkları iyi taşır                | GRU’ya göre daha fazla parametre ve hesaplama maliyeti getirir. |
+| Transformer | Büyük veri ve uzun sekanslarda güçlüdür      | Bu ölçekte veri ve 30 frame pencere için gereğinden ağırdır.    |
+| **GRU**     | Hafif, hızlı, kısa zaman serilerinde yeterli | **Seçilen modeldir; gerçek zamanlı kullanım için uygundur.**    |
 
 Mimari:
 
@@ -118,11 +128,11 @@ Bu düşük parametre sayısı sayesinde modelin sınıflandırma kısmı CPU’
 
 Veri seti RLVS ve RWF-2000 kaynaklarının birleşiminden oluşur. RLVS için 70/15/15 stratified split uygulanmış, RWF-2000 ise kendi train/val bölünmesiyle train ve val tarafına eklenmiştir. Test split RLVS-only bırakılarak karşılaştırılabilirlik korunmuştur.
 
-| Split | Sequences | Violence | NonViolence | Source |
-| --- | ---: | ---: | ---: | --- |
-| Train | 6,423 | 3,227 | 3,196 | RLVS + RWF-2000 |
-| Val | 1,435 | 683 | 752 | RLVS + RWF-2000 |
-| Test | 740 | 277 | 463 | RLVS only |
+| Split | Sequences | Violence | NonViolence | Source          |
+| ----- | --------: | -------: | ----------: | --------------- |
+| Train |     6,423 |    3,227 |       3,196 | RLVS + RWF-2000 |
+| Val   |     1,435 |      683 |         752 | RLVS + RWF-2000 |
+| Test  |       740 |      277 |         463 | RLVS only       |
 
 Eğitimde `BCELoss`, `Adam`, batch size `32`, maksimum `100` epoch ve `val_loss` tabanlı early stopping kullanılmıştır. En iyi model `models/best_model.pt` olarak, en düşük validation loss değerine göre kaydedilmiştir.
 
@@ -132,31 +142,31 @@ Video-level etiketler pencere seviyesinde gürültü oluşturabildiği için sad
 
 ### Final Model — RLVS + RWF-2000, threshold = 0.45
 
-| Metric | Value |
-| --- | ---: |
-| Precision | 0.7749 |
-| Recall | 0.8700 |
-| **F1** | **0.8197** |
+| Metric      |      Value |
+| ----------- | ---------: |
+| Precision   |     0.7749 |
+| Recall      |     0.8700 |
+| **F1**      | **0.8197** |
 | **AUC-ROC** | **0.9272** |
-| Accuracy | 85.7% |
+| Accuracy    |      85.7% |
 
 Test seti 740 sequence içerir: `TP=241`, `FP=70`, `FN=36`, `TN=393`.
 
 ### Ablation Özeti
 
-| Experiment | F1 | AUC-ROC | ΔF1 |
-| --- | ---: | ---: | ---: |
-| Baseline (RLVS-only, t=0.70) | 0.667 | 0.921 | — |
-| Threshold sweep → t=0.40 | 0.827 | 0.921 | +0.160 |
+| Experiment                                |        F1 |   AUC-ROC |      ΔF1 |
+| ----------------------------------------- | --------: | --------: | -------: |
+| Baseline (RLVS-only, t=0.70)              |     0.667 |     0.921 |        — |
+| Threshold sweep → t=0.40                  |     0.827 |     0.921 |   +0.160 |
 | **Blended model (RLVS+RWF-2000, t=0.45)** | **0.820** | **0.927** | deployed |
-| P7.2 No interaction feature (68-dim) | 0.825 | 0.931 | +0.005 |
-| P7.3 No normalization | 0.827 | 0.938 | +0.007 |
-| P7.3 Hip centering only | 0.823 | 0.937 | +0.003 |
-| P7.3 Scale only (no centering) | 0.819 | 0.925 | -0.001 |
-| P7.4 Motion-filter θ=0.00 | 0.831 | 0.923 | +0.011 |
-| P7.4 Motion-filter θ=0.025 | 0.819 | 0.919 | -0.000 |
-| P7.4 Motion-filter θ=0.075 | 0.798 | 0.923 | -0.022 |
-| P7.4 Motion-filter θ=0.10 | 0.830 | 0.931 | +0.010 |
+| P7.2 No interaction feature (68-dim)      |     0.825 |     0.931 |   +0.005 |
+| P7.3 No normalization                     |     0.827 |     0.938 |   +0.007 |
+| P7.3 Hip centering only                   |     0.823 |     0.937 |   +0.003 |
+| P7.3 Scale only (no centering)            |     0.819 |     0.925 |   -0.001 |
+| P7.4 Motion-filter θ=0.00                 |     0.831 |     0.923 |   +0.011 |
+| P7.4 Motion-filter θ=0.025                |     0.819 |     0.919 |   -0.000 |
+| P7.4 Motion-filter θ=0.075                |     0.798 |     0.923 |   -0.022 |
+| P7.4 Motion-filter θ=0.10                 |     0.830 |     0.931 |   +0.010 |
 
 Sonuçlar, iskelet tabanlı hafif bir modelle yüksek AUC-ROC elde edilebildiğini gösterir. En zayıf taraf, bazı NonViolence hareketlerinin iskelet geometrisi açısından Violence davranışına benzemesi nedeniyle false positive üretilebilmesidir.
 
@@ -188,12 +198,12 @@ python -m src.train
 <details>
 <summary>CLI seçenekleri</summary>
 
-| Option | Type | Default | Açıklama |
-| --- | --- | --- | --- |
-| `--source` | `str/int` | `0` | Kamera index'i veya video dosyası yolu. |
-| `--threshold` | `float` | `0.45` | Violence kararı için sigmoid threshold. |
-| `--collect` | `str` | `None` | Fine-tuning için 30-frame `.npy` sequence kaydetme klasörü. |
-| `--no-display` | `flag` | `False` | OpenCV penceresi olmadan terminal çıktısı üretir. |
+| Option         | Type      | Default | Açıklama                                                    |
+| -------------- | --------- | ------- | ----------------------------------------------------------- |
+| `--source`     | `str/int` | `0`     | Kamera index'i veya video dosyası yolu.                     |
+| `--threshold`  | `float`   | `0.45`  | Violence kararı için sigmoid threshold.                     |
+| `--collect`    | `str`     | `None`  | Fine-tuning için 30-frame `.npy` sequence kaydetme klasörü. |
+| `--no-display` | `flag`    | `False` | OpenCV penceresi olmadan terminal çıktısı üretir.           |
 
 </details>
 
